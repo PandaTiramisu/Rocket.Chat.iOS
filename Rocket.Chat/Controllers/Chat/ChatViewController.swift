@@ -771,7 +771,7 @@ final class ChatViewController: SLKTextViewController {
                 self?.isRequestingHistory = false
                 self?.loadMoreMessagesFrom(date: date, loadRemoteHistory: false)
 
-                if messages.count == 0 {
+                if messages.count == 0 || messages.count < MessageManager.historySize {
                     self?.dataController.loadedAllMessages = true
                     self?.syncCollectionView()
                 } else {
