@@ -13,17 +13,6 @@ import RealmSwift
 
 class NotificationManagerSpec: XCTestCase {
 
-    override func setUp() {
-        super.setUp()
-        var uniqueConfiguration = Realm.Configuration.defaultConfiguration
-        uniqueConfiguration.inMemoryIdentifier = NSUUID().uuidString
-        Realm.Configuration.defaultConfiguration = uniqueConfiguration
-
-        Realm.executeOnMainThread({ (realm) in
-            realm.deleteAll()
-        })
-    }
-
     let notification = ChatNotification(
         title: "#general",
         body: "Hey!",
@@ -50,12 +39,12 @@ class NotificationManagerSpec: XCTestCase {
     func testMultipleNotifications() {
         var notification1 = notification
         notification1.title = "Notif1"
-        notification1.post()
+        NotificationManager.post(notification: notification1)
         XCTAssert(NotificationManager.shared.notification == notification1, "First notification should be stored")
 
         var notification2 = notification
         notification2.title = "Notif2"
-        notification2.post()
+        NotificationManager.post(notification: notification2)
         XCTAssert(NotificationManager.shared.notification == notification2, "Second notification should be stored")
 
         NotificationManager.shared.didRespondToNotification()
@@ -66,16 +55,16 @@ class NotificationManagerSpec: XCTestCase {
         WindowManager.open(.chat)
 
         let rid = "UUUUUUUUUU"
-        Realm.executeOnMainThread { (realm) in
+        Realm.execute({ (realm) in
             let object = Subscription()
             object.rid = rid
             realm.add(object, update: true)
-        }
+        })
 
-        var controller: ChatViewController?
+        var controller: MessagesViewController?
         if let subscription = Realm.current?.objects(Subscription.self).filter("rid = '\(rid)'").first {
             if let nav = UIApplication.shared.windows.first?.rootViewController as? UINavigationController {
-                if let chatController = nav.viewControllers.first as? ChatViewController {
+                if let chatController = nav.viewControllers.first as? MessagesViewController {
                     chatController.subscription = subscription
                     controller = chatController
                 }
@@ -87,7 +76,7 @@ class NotificationManagerSpec: XCTestCase {
 
         var notification = self.notification
         notification.payload.rid = rid
-        notification.post()
+        NotificationManager.post(notification: notification)
 
         XCTAssertNil(NotificationManager.shared.notification, "The notification should not post, and should not be stored")
         XCTAssertTrue(NotificationViewController.shared.notificationViewIsHidden, "The notification should not be visible")
@@ -97,17 +86,17 @@ class NotificationManagerSpec: XCTestCase {
         WindowManager.open(.subscriptions)
 
         let rid = "UUUUUUUUUU"
-        Realm.executeOnMainThread { (realm) in
+        Realm.execute({ (realm) in
             let object = Subscription()
             object.rid = rid
             realm.add(object, update: true)
-        }
+        })
 
         if let subscription = Realm.current?.objects(Subscription.self).filter("rid = '\(rid)'").first {
             AppManager.open(room: subscription)
         }
 
-        self.notification.post()
+        NotificationManager.post(notification: notification)
 
         XCTAssertNotNil(NotificationManager.shared.notification, "The notification should post, and should be stored")
         XCTAssertFalse(NotificationViewController.shared.notificationViewIsHidden, "The notification should be visible")
@@ -115,9 +104,11 @@ class NotificationManagerSpec: XCTestCase {
 
     override func tearDown() {
         super.tearDown()
+        Realm.clearDatabase()
         NotificationManager.shared.notification = nil
         NotificationViewController.shared.timer?.fire()
         NotificationViewController.shared.timer = nil
         WindowManager.open(.auth(serverUrl: "", credentials: nil))
     }
+
 }

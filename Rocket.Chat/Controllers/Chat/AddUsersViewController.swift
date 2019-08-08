@@ -24,12 +24,12 @@ class AddUsersViewData {
         return showing >= total
     }
 
-    var usersPages: [[User]] = []
-    var users: FlattenCollection<[[User]]> {
+    var usersPages: [[UnmanagedUser]] = []
+    var users: FlattenCollection<[[UnmanagedUser]]> {
         return usersPages.joined()
     }
 
-    func user(at index: Int) -> User {
+    func user(at index: Int) -> UnmanagedUser {
         return users[users.index(users.startIndex, offsetBy: index)]
     }
 
@@ -39,20 +39,20 @@ class AddUsersViewData {
 
         isLoadingMoreUsers = true
 
-        let request = DirectoryRequest(text: searchText, type: .users)
+        let request = DirectoryRequest(query: searchText, type: .users, workspace: .all)
         let options: APIRequestOptionSet = [.paginated(count: pageSize, offset: currentPage*pageSize)]
 
         API.current()?.fetch(request, options: options) { [weak self] response in
-            guard let strongSelf = self else { return }
+            guard let self = self else { return }
             switch response {
             case .resource(let resource):
-                strongSelf.showing += resource.count ?? 0
-                strongSelf.total = resource.total ?? 0
-                strongSelf.usersPages.append(resource.users)
+                self.showing += resource.count ?? 0
+                self.total = resource.total ?? 0
+                self.usersPages.append(resource.users)
 
-                strongSelf.currentPage += 1
+                self.currentPage += 1
 
-                strongSelf.isLoadingMoreUsers = false
+                self.isLoadingMoreUsers = false
                 completion?()
             case .error:
                 Alert.defaultError.present()
@@ -152,13 +152,12 @@ extension AddUsersViewController: UITableViewDelegate {
             let roomId = data.subscription?.rid,
             let roomType = data.subscription?.type,
             let roomName = data.subscription?.displayName(),
-            let userId = user.identifier,
             let api = API.current()
         else {
             return
         }
 
-        let message = String(format: localized("chat.add_users.confirm.message"), user.displayName(), roomName)
+        let message = String(format: localized("chat.add_users.confirm.message"), user.displayName, roomName)
 
         let controller: UIViewController
         if let presentedViewController = presentedViewController {
@@ -175,7 +174,7 @@ extension AddUsersViewController: UITableViewDelegate {
 
                 guard yes else { return }
 
-                let req = RoomInviteRequest(roomId: roomId, roomType: roomType, userId: userId)
+                let req = RoomInviteRequest(roomId: roomId, roomType: roomType, userId: user.identifier)
                 api.fetch(req) { [weak self] response in
                     switch response {
                     case .resource(let resource):
@@ -230,39 +229,17 @@ extension AddUsersViewController: UITableViewDataSource {
 
 extension AddUsersViewController {
     func setupSearchBar() {
-        if #available(iOS 11.0, *) {
-            let searchController = UISearchController(searchResultsController: nil)
-            searchController.dimsBackgroundDuringPresentation = false
-            searchController.hidesNavigationBarDuringPresentation = false
+        let searchController = UISearchController(searchResultsController: nil)
+        searchController.dimsBackgroundDuringPresentation = false
+        searchController.hidesNavigationBarDuringPresentation = false
 
-            navigationController?.navigationBar.prefersLargeTitles = false
+        navigationController?.navigationBar.prefersLargeTitles = false
 
-            navigationItem.largeTitleDisplayMode = .never
-            navigationItem.searchController = searchController
-            navigationItem.hidesSearchBarWhenScrolling = false
+        navigationItem.largeTitleDisplayMode = .never
+        navigationItem.searchController = searchController
+        navigationItem.hidesSearchBarWhenScrolling = false
 
-            searchBar = searchController.searchBar
-        } else {
-            if let headerView = tableView.tableHeaderView {
-                var frame = headerView.frame
-                frame.size.height = 88
-                headerView.frame = frame
-
-                let searchBar = UISearchBar(frame: CGRect(
-                    x: 0,
-                    y: 44,
-                    width: frame.width,
-                    height: 44
-                ))
-
-                self.searchBar = searchBar
-
-                headerView.addSubview(searchBar)
-
-                tableView.tableHeaderView = headerView
-            }
-        }
-
+        searchBar = searchController.searchBar
         searchBar?.placeholder = localized("subscriptions.search")
         searchBar?.delegate = self
     }

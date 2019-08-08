@@ -1,5 +1,19 @@
-![Rocket.Chat logo](https://raw.githubusercontent.com/RocketChat/Rocket.Chat.Artwork/master/Logos/logo-dark.svg?sanitize=true)
+![](https://user-images.githubusercontent.com/551004/43643393-884b00a4-9701-11e8-94d8-14c46d1f3660.png)
 
+<p align="center" style="color: gray;">
+Take your conversations with you and never miss the action with our <br />iOS mobile app, with features including brand new UI with 3 themes, new ways to sort<br />and group conversations, and new onboarding experience
+</p>
+
+<br />
+
+![Screenshot](https://user-images.githubusercontent.com/551004/43643732-af17fab0-9702-11e8-819f-405afa7c6b64.png)
+
+<p align="center">  
+  <a href=https://geo.itunes.apple.com/us/app/rocket-chat/id1148741252?mt=8>
+  <img alt="Download on the app store" src="https://user-images.githubusercontent.com/7317008/43209852-4ca39622-904b-11e8-8ce1-cdc3aee76ae9.png" width=160>
+  </a>
+</p>
+ 
 # Rocket.Chat iOS native application
 
 [![Build Status](https://circleci.com/gh/RocketChat/Rocket.Chat.iOS/tree/develop.svg?style=shield)](https://circleci.com/gh/RocketChat/Rocket.Chat.iOS/tree/develop)
@@ -7,14 +21,15 @@
 [![codebeat badge](https://codebeat.co/badges/c1319335-bf99-45c0-91f2-27260ccb9741)](https://codebeat.co/projects/github-com-rocketchat-rocket-chat-ios-develop)
 [![Swift 4.1](https://img.shields.io/badge/swift-4.1-red.svg?style=flat)](https://developer.apple.com/swift)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg?style=flat)](https://opensource.org/licenses/MIT)
+[![Reviewed by Hound](https://img.shields.io/badge/Reviewed_by-Hound-8E64B0.svg)](https://houndci.com)
 
 [About Rocket.Chat](https://github.com/RocketChat/Rocket.Chat/#about-rocketchat)
 
-# Download from the App Store
+# Beta Access (TestFlight)
 
-[![Rocket.Chat on Apple AppStore](https://user-images.githubusercontent.com/551004/29770691-a2082ff4-8bc6-11e7-89a6-964cd405ea8e.png)](https://geo.itunes.apple.com/us/app/rocket-chat/id1148741252?mt=8)
+You can signup to our TestFlight builds by acessing this link: https://testflight.apple.com/join/3gcYeoMr.
 
-![Screenshots](https://user-images.githubusercontent.com/193273/35874456-d530ee04-0b6c-11e8-8c19-79dee8140114.png)
+For discussion and feedback on the latest TestFlight build, please access the [#ios-beta](https://open.rocket.chat/channel/ios-beta) channel on our community server.
 
 # Reporting an Issue
 
@@ -36,6 +51,18 @@ Make sure your server supports WebSocket as well as SSL. Apache supports WebSock
 # Contribute
 
 Are you an iOS developer and would like to help? Found a bug that you would like to report or a missing feature that you would like to request? Great! We have written down a [Contribution guide](https://github.com/RocketChat/Rocket.Chat.iOS/blob/develop/CONTRIBUTING.md) so you can start easily.
+
+# Themes ☀️🌙
+
+Choose from 3 new themes to take you from day to night.
+
+![Themes](https://user-images.githubusercontent.com/551004/43647513-35fea6d6-970e-11e8-9712-56e4b24e7a1b.png)
+
+# iPad
+
+We have developed an exclusive experience for iPad users: you can now multitask by using Rocket.Chat at the same time as other apps.
+
+![iPad](https://user-images.githubusercontent.com/551004/43647100-043903d6-970d-11e8-89c5-d7d677e26278.png)
 
 # Donate
 

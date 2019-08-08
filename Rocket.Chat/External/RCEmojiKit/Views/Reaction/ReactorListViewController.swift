@@ -8,6 +8,8 @@
 
 import Foundation
 
+extension ReactorListViewController: UserActionSheetPresenter {}
+
 final class ReactorListViewController: UIViewController, Closeable {
     override var preferredContentSize: CGSize {
         set { }
@@ -27,12 +29,6 @@ final class ReactorListViewController: UIViewController, Closeable {
 
     var reactorListView: ReactorListView! {
         didSet {
-            reactorListView.closePressed = {
-                self.dismiss(animated: true, completion: nil)
-            }
-
-            reactorListView.isPopover = presentationController?.presentationStyle == .popover
-
             reactorListView.model = model
         }
     }

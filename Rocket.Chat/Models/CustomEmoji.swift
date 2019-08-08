@@ -21,7 +21,6 @@ extension CustomEmoji {
         guard
             let name = name,
             let ext = ext,
-            let encodedName = "\(name).\(ext)".addingPercentEncoding(withAllowedCharacters: .urlHostAllowed),
             let serverUrl = serverUrl
         else {
             return nil
@@ -29,7 +28,7 @@ extension CustomEmoji {
 
         var imageUrl = URL(string: serverUrl)?.httpServerURL()
         imageUrl?.appendPathComponent("emoji-custom")
-        imageUrl?.appendPathComponent(encodedName)
+        imageUrl?.appendPathComponent("\(name).\(ext)")
         return imageUrl?.absoluteString
     }
 
@@ -74,7 +73,7 @@ extension CustomEmoji: ModelMappeable {
 
         if let aliases = values["aliases"].array?.compactMap({ $0.string }) {
             self.aliases.removeAll()
-            self.aliases.append(contentsOf: aliases)
+            self.aliases.append(objectsIn: aliases)
         }
 
         name = values["name"].stringValue

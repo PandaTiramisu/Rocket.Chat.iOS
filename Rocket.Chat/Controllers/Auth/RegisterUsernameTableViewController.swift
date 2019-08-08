@@ -25,16 +25,17 @@ final class RegisterUsernameTableViewController: BaseTableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        navigationItem.title = SocketManager.sharedInstance.serverURL?.host
-
-        startLoading()
-        AuthManager.usernameSuggestion { [weak self] (response) in
-            self?.stopLoading()
-
-            if !response.isError() {
-                self?.textFieldUsername.text = response.result["result"].stringValue
-            }
+        if let serverURL = AuthManager.selectedServerInformation()?[ServerPersistKeys.serverURL], let url = URL(string: serverURL) {
+            navigationItem.title = url.host
+        } else {
+            navigationItem.title = SocketManager.sharedInstance.serverURL?.host
         }
+
+        if let nav = navigationController as? AuthNavigationController {
+            nav.setGrayTheme()
+        }
+
+        setupAuth()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -43,19 +44,57 @@ final class RegisterUsernameTableViewController: BaseTableViewController {
     }
 
     func startLoading() {
-        textFieldUsername.alpha = 0.5
-        requesting = true
-        registerButton.startLoading()
-        textFieldUsername.resignFirstResponder()
+        DispatchQueue.main.async {
+            self.textFieldUsername.alpha = 0.5
+            self.requesting = true
+            self.view.layoutIfNeeded()
+            self.registerButton.startLoading()
+            self.textFieldUsername.resignFirstResponder()
+        }
     }
 
     func stopLoading() {
-        textFieldUsername.alpha = 1
-        requesting = false
-        registerButton.stopLoading()
+        DispatchQueue.main.async {
+            self.textFieldUsername.alpha = 1
+            self.requesting = false
+            self.registerButton.stopLoading()
+        }
     }
 
     // MARK: Request username
+
+    func setupAuth() {
+        let presentGenericSocketError = {
+            Alert(
+                title: localized("error.socket.default_error.title"),
+                message: localized("error.socket.default_error.message")
+            ).present()
+        }
+        guard let auth = AuthManager.isAuthenticated() else {
+            presentGenericSocketError()
+            return
+        }
+
+        startLoading()
+        AuthManager.resume(auth) { [weak self] response in
+            self?.stopLoading()
+
+            if response.isError() {
+                presentGenericSocketError()
+            } else {
+                self?.startLoading()
+                AuthManager.usernameSuggestion { (response) in
+                    self?.stopLoading()
+
+                    if !response.isError() {
+                        DispatchQueue.main.async {
+                            self?.textFieldUsername.text = response.result["result"].stringValue
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     @IBAction func didPressedRegisterButton() {
         guard !requesting else {
@@ -66,16 +105,23 @@ final class RegisterUsernameTableViewController: BaseTableViewController {
     }
 
     fileprivate func requestUsername() {
-        startLoading()
+        let error = { (errorMessage: String?) in
+            Alert(
+                title: localized("error.socket.default_error.title"),
+                message: errorMessage ?? localized("error.socket.default_error.message")
+            ).present()
+        }
 
+        guard let username = textFieldUsername.text, !username.isEmpty else {
+            return error(nil)
+        }
+
+        startLoading()
         AuthManager.setUsername(textFieldUsername.text ?? "") { [weak self] success, errorMessage in
             DispatchQueue.main.async {
             self?.stopLoading()
                 if !success {
-                    Alert(
-                        title: localized("error.socket.default_error.title"),
-                        message: errorMessage ?? localized("error.socket.default_error.message")
-                    ).present()
+                    error(errorMessage)
                 } else {
                     self?.dismiss(animated: true, completion: nil)
                     AppManager.reloadApp()
@@ -99,4 +145,10 @@ extension RegisterUsernameTableViewController: UITextFieldDelegate {
         return true
     }
 
+}
+
+// MARK: Disable Theming
+
+extension RegisterUsernameTableViewController {
+    override func applyTheme() { }
 }

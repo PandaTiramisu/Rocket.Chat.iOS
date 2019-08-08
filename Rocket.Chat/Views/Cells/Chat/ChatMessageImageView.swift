@@ -10,7 +10,8 @@ import UIKit
 import FLAnimatedImage
 
 protocol ChatMessageImageViewProtocol: class {
-    func openImageFromCell(attachment: Attachment, thumbnail: FLAnimatedImageView)
+    func openImageFromCell(attachment: UnmanagedAttachment, thumbnail: FLAnimatedImageView)
+    func openImageFromCell(url: URL, thumbnail: FLAnimatedImageView)
 }
 
 final class ChatMessageImageView: ChatMessageAttachmentView {
@@ -54,20 +55,25 @@ final class ChatMessageImageView: ChatMessageAttachmentView {
         guard let imageURL = attachment.fullImageURL() else {
             return nil
         }
+
         if imageURL.absoluteString.starts(with: "http://") {
             isLoadable = false
             detailText.text = ""
             labelTitle.text = attachment.title + " (" + localized("alert.insecure_image.title") + ")"
-            imageView.contentMode = UIViewContentMode.center
+            imageView.contentMode = UIView.ContentMode.center
             imageView.image =  UIImage(named: "Resource Unavailable")
             return nil
         }
+
         labelTitle.text = attachment.title
         detailText.text = attachment.descriptionText
         detailTextIndicator.isHidden = attachment.descriptionText?.isEmpty ?? true
-        let fullHeight = ChatMessageImageView.heightFor(withText: attachment.descriptionText)
+
+        let availableWidth = frame.size.width
+        let fullHeight = ChatMessageImageView.heightFor(with: availableWidth, description: attachment.descriptionText)
         fullHeightConstraint.constant = fullHeight
         detailTextHeightConstraint.constant = fullHeight - ChatMessageImageView.defaultHeight
+
         return imageURL
     }
 
@@ -89,13 +95,17 @@ final class ChatMessageImageView: ChatMessageAttachmentView {
 
     @objc func didTapView() {
         if isLoadable {
-            delegate?.openImageFromCell(attachment: attachment, thumbnail: imageView)
+            if let unmanaged = UnmanagedAttachment(attachment) {
+                delegate?.openImageFromCell(attachment: unmanaged, thumbnail: imageView)
+            }
         } else {
             guard let imageURL = attachment.fullImageURL() else { return }
 
-            Ask(key: "alert.insecure_image", buttonB: localized("chat.message.open_browser"), handlerB: { _ in
-                 MainSplitViewController.chatViewController?.openURL(url: imageURL)
-            }).present()
+            if imageURL.absoluteString.contains("http://") {
+                Ask(key: "alert.insecure_image", buttonB: localized("chat.message.open_browser"), handlerB: { _ in
+                      MainSplitViewController.chatViewController?.openURL(url: imageURL)
+                }).present()
+            }
         }
     }
 }

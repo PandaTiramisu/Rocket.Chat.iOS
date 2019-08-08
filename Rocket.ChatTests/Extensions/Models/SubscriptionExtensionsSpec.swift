@@ -8,20 +8,24 @@
 
 import Foundation
 import XCTest
+import RealmSwift
 
 @testable import Rocket_Chat
 
-class SubscriptionExtensionsSpec: XCTestCase, RealmTestCase {
+class SubscriptionExtensionsSpec: XCTestCase {
     func testFilterByName() {
-        let realm = testRealm()
+        guard let realm = Realm.current else {
+            XCTFail("realm could not be instantiated")
+            return
+        }
 
         let sub1 = Subscription.testInstance("sub1")
         let sub2 = Subscription.testInstance("sub2")
 
-        try? realm.write {
+        realm.execute({ realm in
             realm.add(sub1, update: true)
             realm.add(sub2, update: true)
-        }
+        })
 
         let objects = realm.objects(Subscription.self).filterBy(name: "sub1")
 
@@ -35,22 +39,28 @@ class SubscriptionExtensionsSpec: XCTestCase, RealmTestCase {
     }
 
     func testLinkingObjectsFilterByName() {
-        let realm = testRealm()
+        let realm = Realm.current
 
         let auth = Auth.testInstance()
 
         let sub1 = Subscription.testInstance("sub1")
         sub1.auth = auth
+
         let sub2 = Subscription.testInstance("sub2")
         sub2.auth = auth
 
-        try? realm.write {
+        let sub3 = Subscription.testInstance("sub3")
+        sub3.auth = auth
+        sub3.open = false
+
+        realm?.execute({ realm in
             realm.add(sub1, update: true)
             realm.add(sub2, update: true)
+            realm.add(sub3, update: true)
             realm.add(auth, update: true)
-        }
+        })
 
-        guard let subscriptions = Subscription.all(realm: realm) else {
+        guard let subscriptions = Subscription.all() else {
             fatalError("subscriptions must return values")
         }
 
@@ -61,6 +71,9 @@ class SubscriptionExtensionsSpec: XCTestCase, RealmTestCase {
         let objectsUppercase = subscriptions.filterBy(name: "SUB1")
         XCTAssertEqual(objectsUppercase.count, 1)
         XCTAssertEqual(objectsUppercase.first?.identifier, sub1.identifier)
+
+        let objectsHidden = subscriptions.filterBy(name: "sub3")
+        XCTAssertEqual(objectsHidden.count, 0)
     }
 
 }

@@ -11,9 +11,12 @@ import UIKit
 extension NSAttributedString {
     func heightForView(withWidth width: CGFloat) -> CGFloat? {
         let size = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
-        let rect = self.boundingRect(with: size,
-                                     options: [.usesLineFragmentOrigin, .usesFontLeading],
-                                     context: nil)
+
+        let rect = self.boundingRect(
+            with: size,
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil
+        )
 
         return rect.height
     }
@@ -41,7 +44,7 @@ extension NSMutableAttributedString {
     func setFont(_ font: UIFont, range: NSRange? = nil) {
         if let attributeRange = range != nil ? range : NSRange(location: 0, length: self.length) {
             self.addAttributes([
-                NSAttributedStringKey.font: font
+                NSAttributedString.Key.font: font
             ], range: attributeRange)
         }
     }
@@ -49,7 +52,7 @@ extension NSMutableAttributedString {
     func setFontColor(_ color: UIColor, range: NSRange? = nil) {
         if let attributeRange = range != nil ? range : NSRange(location: 0, length: self.length) {
             self.addAttributes([
-                NSAttributedStringKey.foregroundColor: color
+                NSAttributedString.Key.foregroundColor: color
             ], range: attributeRange)
         }
     }
@@ -57,7 +60,7 @@ extension NSMutableAttributedString {
     func setBackgroundColor(_ color: UIColor, range: NSRange? = nil) {
         if let attributeRange = range != nil ? range : NSRange(location: 0, length: self.length) {
             self.addAttributes([
-                NSAttributedStringKey.backgroundColor: color
+                NSAttributedString.Key.backgroundColor: color
             ], range: attributeRange)
         }
     }
@@ -65,11 +68,27 @@ extension NSMutableAttributedString {
     func setMention(_ mention: String, range: NSRange? = nil) {
         let link = "rocketchat://mention?name=\(mention)"
 
-        if let attributeRange = range != nil ? range : NSRange(location: 0, length: self.length) {
-            self.addAttributes([
-                NSAttributedStringKey.link: link
-            ], range: attributeRange)
-        }
+        let attributeRange = range ?? NSRange(location: 0, length: self.length)
+
+        self.addAttributes([
+            NSAttributedString.Key.link: link
+        ], range: attributeRange)
+    }
+
+    func padLeftAndRight(range: NSRange) -> NSRange {
+        // "\u{00a0}" = non-line-breaking space character
+        self.insert(NSAttributedString(string: "\u{00a0}"), at: range.location)
+        self.insert(NSAttributedString(string: "\u{00a0}"), at: range.location + range.length + 1)
+        return NSRange(location: range.location, length: range.length + 2)
+    }
+
+    func removeAtSymbol(range: NSRange) -> NSRange {
+        self.replaceCharacters(
+            in: NSRange(location: range.location + 1, length: 1),
+            with: ""
+        )
+
+        return NSRange(location: range.location, length: range.length - 1)
     }
 
     func setChannel(_ channel: String, range: NSRange? = nil) {
@@ -77,7 +96,7 @@ extension NSMutableAttributedString {
 
         if let attributeRange = range != nil ? range : NSRange(location: 0, length: self.length) {
             self.addAttributes([
-                NSAttributedStringKey.link: link
+                NSAttributedString.Key.link: link
             ], range: attributeRange)
         }
     }
@@ -87,7 +106,7 @@ extension NSMutableAttributedString {
         paragraphStyle.lineSpacing = font.lineHeight * 0.1
 
         self.addAttributes([
-            NSAttributedStringKey.paragraphStyle: paragraphStyle
+            NSAttributedString.Key.paragraphStyle: paragraphStyle
         ], range: NSRange(location: 0, length: self.length))
     }
 
@@ -95,11 +114,28 @@ extension NSMutableAttributedString {
         return MarkdownManager.shared.transformAttributedString(self)
     }
 
-    func highlightMentions(_ mentions: [Mention], currentUsername: String?) {
+    func transformMarkdown(with theme: Theme?) -> NSAttributedString {
+        return MarkdownManager.shared.transformAttributedString(self, with: theme)
+    }
+
+    func highlightMentions(_ mentions: [UnmanagedMention], currentUsername: String?) {
         var handledHighlights: [String] = []
+        let shouldUseRealName = AuthSettingsManager.shared.settings?.useUserRealName ?? false
+
+        if shouldUseRealName {
+            mentions.forEach { mention in
+                let realName = mention.realName ?? ""
+                let username = mention.username ?? ""
+
+                if shouldUseRealName {
+                    mutableString.setString(string.replacingOccurrences(of: username, with: realName))
+                }
+            }
+        }
+
+        let theme = ThemeManager.theme
 
         mentions.forEach { mention in
-            let shouldUseRealName = AuthSettingsManager.shared.settings?.useUserRealName ?? false
             let realName = mention.realName ?? ""
             let username = mention.username ?? ""
 
@@ -109,35 +145,36 @@ extension NSMutableAttributedString {
                 let background: UIColor
                 let font: UIColor
                 if username == currentUsername {
-                    background = .primaryAction
+                    background = theme.actionTintColor
                     font = .white
-
-                    if shouldUseRealName {
-                        mutableString.setString(string.replacingFirstOccurrence(of: username, with: realName))
-                    }
                 } else if username == "all" || username == "here" {
                     background = .attention
                     font = .white
                 } else {
-                    background = .clear
-                    font = .link
-
-                    if shouldUseRealName && !realName.isEmpty {
-                        mutableString.setString(string.replacingFirstOccurrence(of: username, with: realName))
-                    }
+                    background = theme.actionBackgroundColor
+                    font = theme.actionTintColor
                 }
 
                 let ranges = string.ranges(of: "@\(shouldUseRealName ? realName : username)")
+
+                var offset = 0
+
                 for range in ranges {
                     let range = NSRange(range, in: string)
+                    var transformedRange = NSRange(location: range.location + offset, length: range.length)
+
+                    transformedRange = padLeftAndRight(range: transformedRange)
+                    transformedRange = removeAtSymbol(range: transformedRange)
 
                     if username != "all" && username != "here" && username != currentUsername {
-                        setMention(username, range: range)
+                        setMention(username, range: transformedRange)
                     }
 
-                    setBackgroundColor(background, range: range)
-                    setFontColor(font, range: range)
-                    setFont(MessageTextFontAttributes.boldFont, range: range)
+                    offset = transformedRange.length - range.length
+
+                    setBackgroundColor(background, range: transformedRange)
+                    setFontColor(font, range: transformedRange)
+                    setFont(MessageTextFontAttributes.boldFont, range: transformedRange)
                 }
             }
         }
@@ -154,7 +191,7 @@ extension NSMutableAttributedString {
                 for range in ranges {
                     let range = NSRange(range, in: string)
                     setChannel(channel, range: range)
-                    setFontColor(.link, range: range)
+                    setFontColor(.primaryAction, range: range)
                 }
             }
         }

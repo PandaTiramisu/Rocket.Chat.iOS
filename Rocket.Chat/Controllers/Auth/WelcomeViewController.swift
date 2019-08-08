@@ -9,15 +9,16 @@
 import UIKit
 import SafariServices
 
-class WelcomeViewController: BaseViewController {
+final class WelcomeViewController: BaseViewController {
 
-    internal var joinCommunitySegue = "JoinCommunity"
+    internal let joinCommunitySegue = "JoinCommunity"
     internal let communityServerURL = "\nopen.rocket.chat"
-    internal let createServerURL = "https://cloud.rocket.chat"
+    internal let createServerURL = "https://cloud.rocket.chat/trial"
 
     @IBOutlet weak var welcomeLabel: UILabel! {
         didSet {
             welcomeLabel.text = localized("onboarding.label_welcome")
+            welcomeLabel.font = welcomeLabel.font.bold()
         }
     }
 
@@ -53,15 +54,15 @@ class WelcomeViewController: BaseViewController {
             let title = NSAttributedString(
                 string: localized("onboarding.button_join_community_prefix"),
                 attributes: [
-                    NSAttributedStringKey.font: UIFont.systemFont(ofSize: 17, weight: .semibold),
-                    NSAttributedStringKey.foregroundColor: UIColor.RCSkyBlue()
+                    NSAttributedString.Key.font: UIFont.preferredFont(forTextStyle: .headline),
+                    NSAttributedString.Key.foregroundColor: UIColor.RCSkyBlue()
                 ]
             )
             let serverURL = NSAttributedString(
                 string: communityServerURL,
                 attributes: [
-                    NSAttributedStringKey.font: UIFont.systemFont(ofSize: 15, weight: .regular),
-                    NSAttributedStringKey.foregroundColor: UIColor.RCTextFieldGray()
+                    NSAttributedString.Key.font: UIFont.preferredFont(forTextStyle: .subheadline),
+                    NSAttributedString.Key.foregroundColor: UIColor.RCTextFieldGray()
                 ]
             )
 
@@ -73,15 +74,20 @@ class WelcomeViewController: BaseViewController {
 
             let combinationRange = NSRange(location: 0, length: combinedString.length)
             combinedString.addAttributes(
-                [NSAttributedStringKey.paragraphStyle: paragraphStyle],
+                [NSAttributedString.Key.paragraphStyle: paragraphStyle],
                 range: combinationRange
             )
 
             joinCommunityButton.setAttributedTitle(combinedString, for: .normal)
+            joinCommunityButton.accessibilityLabel = "\(title.string), \(serverURL.string)"
         }
     }
 
     // MARK: Life Cycle
+
+    override var isNavigationBarTransparent: Bool {
+        return true
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -91,7 +97,7 @@ class WelcomeViewController: BaseViewController {
     // MARK: Setup
 
     func setupAppearance() {
-        if let nav = navigationController as? BaseNavigationController {
+        if let nav = navigationController as? AuthNavigationController {
             nav.setTransparentTheme()
         }
 
@@ -118,10 +124,18 @@ class WelcomeViewController: BaseViewController {
             return
         }
 
+        AnalyticsManager.log(event: .showNewWorkspace)
+
         let controller = SFSafariViewController(url: url)
-        controller.modalPresentationStyle = .popover
+        controller.modalPresentationStyle = .formSheet
         controller.preferredControlTintColor = view.tintColor
 
         present(controller, animated: true, completion: nil)
     }
+}
+
+// MARK: Disable Theming
+
+extension WelcomeViewController {
+    override func applyTheme() { }
 }

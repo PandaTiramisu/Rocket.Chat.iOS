@@ -59,7 +59,7 @@ class PreferencesViewModelSpec: XCTestCase {
     }
 
     func testTrackingValue() {
-        let value = BugTrackingCoordinator.isCrashReportingDisabled
+        let value = AnalyticsCoordinator.isUsageDataLoggingDisabled
 
         // trackinValue is always the opposite of the value
         XCTAssertNotEqual(model.trackingValue, value)
@@ -68,13 +68,7 @@ class PreferencesViewModelSpec: XCTestCase {
     func testNumberOfRowsInSection() {
         XCTAssertEqual(model.numberOfSections, 7)
         XCTAssertEqual(model.numberOfRowsInSection(0), 1)
-
-        if #available(iOS 11, *) {
-            XCTAssertEqual(model.numberOfRowsInSection(1), 5)
-        } else {
-            XCTAssertEqual(model.numberOfRowsInSection(1), 4)
-        }
-
+        XCTAssertEqual(model.numberOfRowsInSection(1), 7)
         XCTAssertEqual(model.numberOfRowsInSection(2), 0)
         XCTAssertEqual(model.numberOfRowsInSection(3), 3)
         XCTAssertEqual(model.numberOfRowsInSection(4), 1)

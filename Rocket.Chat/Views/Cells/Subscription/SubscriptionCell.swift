@@ -8,86 +8,25 @@
 
 import UIKit
 
-final class SubscriptionCell: UITableViewCell {
+final class SubscriptionCell: BaseSubscriptionCell {
 
     static let identifier = "CellSubscription"
 
-    internal let labelSelectedTextColor = UIColor(rgb: 0xFFFFFF, alphaVal: 1)
-    internal let labelReadTextColor = UIColor(rgb: 0x9ea2a4, alphaVal: 1)
-    internal let labelUnreadTextColor = UIColor(rgb: 0xFFFFFF, alphaVal: 1)
-
-    internal let defaultBackgroundColor = UIColor.white
-    internal let selectedBackgroundColor = #colorLiteral(red: 0.4980838895, green: 0.4951269031, blue: 0.5003594756, alpha: 0.19921875)
-    internal let highlightedBackgroundColor = #colorLiteral(red: 0.4980838895, green: 0.4951269031, blue: 0.5003594756, alpha: 0.09530179799)
-
-    var subscription: Subscription? {
-        didSet {
-            guard let subscription = subscription, !subscription.isInvalidated else { return }
-            updateSubscriptionInformatin()
-        }
-    }
-
-    @IBOutlet weak var viewStatus: UIView! {
-        didSet {
-            viewStatus.backgroundColor = .RCInvisible()
-            viewStatus.layer.masksToBounds = true
-            viewStatus.layer.cornerRadius = 5
-        }
-    }
-
-    weak var avatarView: AvatarView!
-    @IBOutlet weak var avatarViewContainer: UIView! {
-        didSet {
-            avatarViewContainer.layer.cornerRadius = 4
-            avatarViewContainer.layer.masksToBounds = true
-
-            if let avatarView = AvatarView.instantiateFromNib() {
-                avatarView.frame = avatarViewContainer.bounds
-                avatarViewContainer.addSubview(avatarView)
-                self.avatarView = avatarView
-            }
-        }
-    }
-
-    @IBOutlet weak var iconRoom: UIImageView!
-    @IBOutlet weak var labelName: UILabel!
     @IBOutlet weak var labelLastMessage: UILabel!
     @IBOutlet weak var labelDate: UILabel!
-    @IBOutlet weak var labelUnread: UILabel! {
-        didSet {
-            labelUnread.layer.cornerRadius = 4
-        }
-    }
 
     override func prepareForReuse() {
         super.prepareForReuse()
 
-        avatarView.prepareForReuse()
-
-        labelName.text = ""
-        labelLastMessage.text = ""
-        labelUnread.text = ""
-        labelUnread.alpha = 0
+        labelDate.text = nil
+        labelLastMessage.text = nil
+        labelName.text = nil
     }
 
-    func updateSubscriptionInformatin() {
-        guard let subscription = self.subscription else { return }
+    override func updateSubscriptionInformation() {
+        guard let subscription = subscription?.managedObject else { return }
 
-        updateStatus(subscription: subscription)
-
-        if let user = subscription.directMessageUser {
-            avatarView.subscription = nil
-            avatarView.user = user
-        } else {
-            avatarView.user = nil
-            avatarView.subscription = subscription
-        }
-
-        labelName.text = subscription.displayName()
-        labelLastMessage.text = subscription.roomLastMessageText
-
-        let nameFontSize = labelName.font.pointSize
-        let lastMessageFontSize = labelLastMessage.font.pointSize
+        labelLastMessage.text = subscription.roomLastMessageText ?? localized("subscriptions.list.no_message")
 
         if let roomLastMessage = subscription.roomLastMessage?.createdAt {
             labelDate.text = dateFormatted(date: roomLastMessage)
@@ -95,54 +34,54 @@ final class SubscriptionCell: UITableViewCell {
             labelDate.text = nil
         }
 
+        super.updateSubscriptionInformation()
+
+        setLastMessageColor()
+        setDateColor()
+    }
+
+    override func updateViewForAlert(with subscription: Subscription) {
+        super.updateViewForAlert(with: subscription)
+        labelDate.font = UIFont.systemFont(ofSize: labelDate.font.pointSize, weight: .bold)
+        labelLastMessage.font = UIFont.systemFont(ofSize: labelLastMessage.font.pointSize, weight: .medium)
+    }
+
+    override func updateViewForNoAlert(with subscription: Subscription) {
+        super.updateViewForNoAlert(with: subscription)
+        labelDate.font = UIFont.systemFont(ofSize: labelDate.font.pointSize, weight: .regular)
+        labelLastMessage.font = UIFont.systemFont(ofSize: labelLastMessage.font.pointSize, weight: .regular)
+    }
+
+    private func setLastMessageColor() {
+        guard
+            let theme = theme,
+            let subscription = subscription?.managedObject
+        else {
+            return
+        }
+
         if subscription.unread > 0 || subscription.alert {
-            labelName.font = UIFont.systemFont(ofSize: nameFontSize, weight: .semibold)
-            labelLastMessage.font = UIFont.systemFont(ofSize: lastMessageFontSize, weight: .medium)
-
-            if subscription.unread > 0 {
-                labelUnread.alpha = 1
-                labelUnread.text =  "\(subscription.unread)"
-            } else {
-                labelUnread.alpha = 0
-                labelUnread.text =  ""
-            }
+            labelLastMessage.textColor = theme.bodyText
         } else {
-            labelName.font = UIFont.systemFont(ofSize: nameFontSize, weight: .medium)
-            labelLastMessage.font = UIFont.systemFont(ofSize: lastMessageFontSize, weight: .regular)
-
-            labelUnread.alpha = 0
-            labelUnread.text =  ""
-        }
-
-        applyTheme()
-    }
-
-    fileprivate func updateStatus(subscription: Subscription) {
-        if subscription.type == .directMessage {
-            viewStatus.isHidden = false
-            iconRoom.isHidden = true
-
-            if let user = subscription.directMessageUser {
-                switch user.status {
-                case .online: viewStatus.backgroundColor = .RCOnline()
-                case .busy: viewStatus.backgroundColor = .RCBusy()
-                case .away: viewStatus.backgroundColor = .RCAway()
-                case .offline: viewStatus.backgroundColor = .RCInvisible()
-                }
-            }
-        } else {
-            iconRoom.isHidden = false
-            viewStatus.isHidden = true
-
-            if subscription.type == .channel {
-                iconRoom.image = UIImage(named: "Cell Subscription Hashtag")
-            } else {
-                iconRoom.image = UIImage(named: "Cell Subscription Lock")
-            }
+            labelLastMessage.textColor = theme.auxiliaryText
         }
     }
 
-    // Need to localize this formatting
+    private func setDateColor() {
+        guard
+            let theme = theme,
+            let subscription = subscription?.managedObject
+        else {
+            return
+        }
+
+        if subscription.unread > 0 || subscription.alert {
+            labelDate.textColor = theme.tintColor
+        } else {
+            labelDate.textColor = theme.auxiliaryText
+        }
+    }
+
     func dateFormatted(date: Date) -> String {
         let calendar = NSCalendar.current
 
@@ -156,44 +95,6 @@ final class SubscriptionCell: UITableViewCell {
 
         return RCDateFormatter.date(date, dateStyle: .short)
     }
-
-}
-
-extension SubscriptionCell {
-
-    override func setSelected(_ selected: Bool, animated: Bool) {
-        let transition = {
-            switch selected {
-            case true:
-                self.backgroundColor = self.selectedBackgroundColor
-            case false:
-                self.backgroundColor = self.theme?.backgroundColor ?? self.defaultBackgroundColor
-            }
-        }
-
-        if animated {
-            UIView.animate(withDuration: 0.18, animations: transition)
-        } else {
-            transition()
-        }
-    }
-
-    override func setHighlighted(_ highlighted: Bool, animated: Bool) {
-        let transition = {
-            switch highlighted {
-            case true:
-                self.backgroundColor = self.highlightedBackgroundColor
-            case false:
-                self.backgroundColor = self.theme?.backgroundColor ?? self.defaultBackgroundColor
-            }
-        }
-
-        if animated {
-            UIView.animate(withDuration: 0.18, animations: transition)
-        } else {
-            transition()
-        }
-    }
 }
 
 // MARK: Themeable
@@ -201,20 +102,7 @@ extension SubscriptionCell {
 extension SubscriptionCell {
     override func applyTheme() {
         super.applyTheme()
-        guard let theme = theme else { return }
-        labelName.textColor = theme.titleText
-        labelUnread.backgroundColor = theme.tintColor
-        labelUnread.textColor = theme.backgroundColor
-        labelLastMessage.textColor = theme.controlText
-        iconRoom.tintColor = theme.auxiliaryText
-
-        if let subscription = self.subscription, subscription.unread > 0 || subscription.alert {
-            labelDate.textColor = theme.tintColor
-        } else {
-            labelDate.textColor = theme.auxiliaryText
-        }
-
-        setSelected(isSelected, animated: false)
-        setHighlighted(isHighlighted, animated: false)
+        setLastMessageColor()
+        setDateColor()
     }
 }

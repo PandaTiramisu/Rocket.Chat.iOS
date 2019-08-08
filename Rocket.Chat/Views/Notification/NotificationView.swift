@@ -23,20 +23,17 @@ class NotificationView: UIView {
     @IBOutlet weak var avatarViewContainer: UIView! {
         didSet {
             avatarViewContainer.layer.cornerRadius = 4
-            if let avatarView = AvatarView.instantiateFromNib() {
-                avatarView.frame = avatarViewContainer.bounds
-                avatarViewContainer.addSubview(avatarView)
-                self.avatarView = avatarView
-            }
+            avatarView.frame = avatarViewContainer.bounds
+            avatarViewContainer.addSubview(avatarView)
         }
     }
 
-    weak var avatarView: AvatarView! {
-        didSet {
-            avatarView.layer.cornerRadius = 2
-            avatarView.layer.masksToBounds = true
-        }
-    }
+    lazy var avatarView: AvatarView = {
+        let avatarView = AvatarView()
+        avatarView.layer.cornerRadius = 2
+        avatarView.layer.masksToBounds = true
+        return avatarView
+    }()
 
     func displayNotification(title: String, body: String, username: String) {
         titleLabel.text = title
@@ -47,13 +44,14 @@ class NotificationView: UIView {
     private func applyShadow(color: UIColor = .black) {
         layer.shadowColor = color.cgColor
         layer.shadowOpacity = 0.3
-        layer.shadowRadius = 1
+        layer.shadowRadius = 0.5
         layer.shadowOffset = CGSize(width: 0, height: 0)
     }
 }
 
 extension NotificationView {
     override func applyTheme() {
+        super.applyTheme()
         guard let theme = theme else { return }
         bodyLabel.textColor = theme.bodyText
         titleLabel.textColor = theme.titleText

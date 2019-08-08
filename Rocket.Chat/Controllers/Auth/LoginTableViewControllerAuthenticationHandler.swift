@@ -29,14 +29,10 @@ extension LoginTableViewController {
                 return
             }
 
-            if let publicSettings = serverPublicSettings {
-                AuthSettingsManager.persistPublicSettings(settings: publicSettings)
-            }
-
             if let realm = Realm.current, let auth = AuthManager.isAuthenticated(realm: realm), let version = serverVersion {
-                try? realm.write {
+                realm.execute({ _ in
                     auth.serverVersion = version.description
-                }
+                })
             }
         case .error(let error):
             stopLoading()
@@ -54,8 +50,8 @@ extension LoginTableViewController {
 
                 if let user = resource.user {
                     let realm = Realm.current
-                    try? realm?.write {
-                        realm?.add(user, update: true)
+                    Realm.executeOnMainThread(realm: realm) { realm in
+                        realm.add(user, update: true)
                     }
 
                     if user.username != nil {
@@ -64,6 +60,8 @@ extension LoginTableViewController {
                     } else {
                         self?.performSegue(withIdentifier: "RequestUsername", sender: nil)
                     }
+
+                    AnalyticsManager.log(event: .login)
                 } else {
                     self?.stopLoading()
                     Alert(key: "error.socket.default_error").present()

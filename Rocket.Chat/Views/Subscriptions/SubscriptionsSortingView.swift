@@ -32,7 +32,7 @@ final class SubscriptionsSortingView: UIView {
     }
 
     @IBOutlet weak var separatorView: UIView!
-    @IBOutlet weak var buttonClose: UIButton!
+    @IBOutlet weak var filterImageView: UIImageView!
     @IBOutlet weak var headerView: UIView!
     @IBOutlet weak var tableView: UITableView! {
         didSet {
@@ -61,7 +61,7 @@ final class SubscriptionsSortingView: UIView {
     }
 
     private func animates(_ animations: @escaping VoidCompletion, completion: VoidCompletion? = nil) {
-        UIView.animate(withDuration: 0.15, delay: 0, options: UIViewAnimationOptions(rawValue: 7 << 16), animations: {
+        UIView.animate(withDuration: 0.15, delay: 0, options: UIView.AnimationOptions(rawValue: 7 << 16), animations: {
             animations()
         }, completion: { finished in
             if finished {
@@ -87,6 +87,7 @@ final class SubscriptionsSortingView: UIView {
             })
         }
 
+        instance.applyTheme()
         return instance
     }
 
@@ -105,7 +106,7 @@ final class SubscriptionsSortingView: UIView {
 
     // MARK: IBAction
 
-    @IBAction func buttonCloseDidPressed(_ sender: Any) {
+    @IBAction func recognizeHeaderTapGesture(_ sender: UITapGestureRecognizer) {
         close()
     }
 
@@ -194,12 +195,35 @@ extension SubscriptionsSortingView: UITableViewDelegate {
 // MARK: Themeable
 
 extension SubscriptionsSortingView {
+    override var theme: Theme? {
+        guard let theme = super.theme else { return nil }
+        return Theme(
+            backgroundColor: theme.appearence == .light ? theme.backgroundColor : theme.focusedBackground,
+            focusedBackground: theme.focusedBackground,
+            chatComponentBackground: theme.chatComponentBackground,
+            auxiliaryBackground: theme.auxiliaryBackground,
+            bannerBackground: theme.bannerBackground,
+            titleText: theme.titleText,
+            bodyText: theme.bodyText,
+            borderColor: theme.borderColor,
+            controlText: theme.controlText,
+            auxiliaryText: theme.auxiliaryText,
+            tintColor: theme.tintColor,
+            auxiliaryTintColor: theme.auxiliaryTintColor,
+            actionTintColor: theme.actionTintColor,
+            actionBackgroundColor: theme.actionBackgroundColor,
+            mutedAccent: theme.mutedAccent,
+            strongAccent: theme.strongAccent,
+            appearence: theme.appearence
+        )
+    }
+
     override func applyTheme() {
         super.applyTheme()
         guard let theme = theme else { return }
 
         labelTitle.textColor = theme.auxiliaryText
-        buttonClose.tintColor = theme.auxiliaryText
+        filterImageView.tintColor = theme.auxiliaryText
         separatorView.backgroundColor = theme.mutedAccent
     }
 }

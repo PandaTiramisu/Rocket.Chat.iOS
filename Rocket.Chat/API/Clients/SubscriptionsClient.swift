@@ -15,24 +15,25 @@ struct SubscriptionsClient: APIClient {
         self.api = api
     }
 
-    func markAsRead(subscription: Subscription) {
+    func markAsRead(subscription: UnmanagedSubscription) {
         let req = SubscriptionReadRequest(rid: subscription.rid)
+        let subscriptionIdentifier = subscription.rid
 
-        api.fetch(req) { response in
-            switch response {
-            case .resource: break
-            case .error(let error):
-                if case .version = error {
-                    SubscriptionManager.markAsRead(subscription, completion: { _ in })
-                }
+        Realm.execute({ (realm) in
+            if let subscription = Subscription.find(rid: subscriptionIdentifier, realm: realm) {
+                subscription.alert = false
+                subscription.unread = 0
+                subscription.userMentions = 0
+                subscription.groupMentions = 0
+                realm.add(subscription, update: true)
             }
-        }
+        })
+
+        api.fetch(req, completion: nil)
     }
 
     func fetchSubscriptions(updatedSince: Date?, realm: Realm? = Realm.current, completion: (() -> Void)? = nil) {
-        let req = SubscriptionsRequest()
-
-        let currentRealm = realm
+        let req = SubscriptionsRequest(updatedSince: updatedSince)
 
         api.fetch(req, options: [.retryOnError(count: 3)]) { response in
             switch response {
@@ -44,20 +45,44 @@ struct SubscriptionsClient: APIClient {
 
                 let subscriptions = List<Subscription>()
 
-                currentRealm?.execute({ realm in
+                realm?.execute({ realm in
                     guard let auth = AuthManager.isAuthenticated(realm: realm) else { return }
 
-                    func queueSubscriptionForUpdate(_ subscription: Subscription) {
-                        subscription.auth = auth
-                        subscriptions.append(subscription)
+                    func queueSubscriptionForUpdate(_ object: JSON) {
+                        var subscription: Subscription?
+
+                        if let rid = object["rid"].string {
+                            subscription = Subscription.find(rid: rid, realm: realm) ??
+                                Subscription.getOrCreate(realm: realm, values: object, updates: nil)
+                        } else {
+                            subscription = Subscription.getOrCreate(realm: realm, values: object, updates: nil)
+                        }
+
+                        if let subscription = subscription {
+                            subscription.auth = auth
+                            subscription.map(object, realm: realm)
+                            subscription.mapRoom(object, realm: realm)
+                            subscriptions.append(subscription)
+                        }
                     }
 
                     resource.list?.forEach(queueSubscriptionForUpdate)
                     resource.update?.forEach(queueSubscriptionForUpdate)
 
-                    resource.remove?.forEach { subscription in
-                        subscription.auth = nil
-                        subscriptions.append(subscription)
+                    resource.remove?.forEach { object in
+                        var subscription: Subscription?
+
+                        if let rid = object["rid"].string {
+                            subscription = Subscription.find(rid: rid, realm: realm) ??
+                                Subscription.getOrCreate(realm: realm, values: object, updates: nil)
+                        } else {
+                            subscription = Subscription.getOrCreate(realm: realm, values: object, updates: nil)
+                        }
+
+                        if let subscription = subscription {
+                            subscription.auth = nil
+                            subscriptions.append(subscription)
+                        }
                     }
 
                     auth.lastSubscriptionFetchWithLastMessage = Date.serverDate
@@ -65,21 +90,14 @@ struct SubscriptionsClient: APIClient {
                     realm.add(subscriptions, update: true)
                     realm.add(auth, update: true)
                 }, completion: completion)
-            case .error(let error):
-                switch error {
-                case .version:
-                    self.fetchSubscriptionsFallback(updatedSince: updatedSince, realm: realm, completion: completion)
-                default:
-                    completion?()
-                }
+            case .error:
+                completion?()
             }
         }
     }
 
     func fetchRooms(updatedSince: Date?, realm: Realm? = Realm.current, completion: (() -> Void)? = nil) {
-        let req = RoomsRequest()
-
-        let currentRealm = realm
+        let req = RoomsRequest(updatedSince: updatedSince)
 
         api.fetch(req, options: [.retryOnError(count: 3)]) { response in
             switch response {
@@ -89,15 +107,15 @@ struct SubscriptionsClient: APIClient {
                     return
                 }
 
-                currentRealm?.execute({ realm in
+                realm?.execute({ realm in
                     guard let auth = AuthManager.isAuthenticated(realm: realm) else { return }
-                    auth.lastSubscriptionFetchWithLastMessage = Date.serverDate.addingTimeInterval(-1)
+                    auth.lastRoomFetchWithLastMessage = Date.serverDate
                     realm.add(auth, update: true)
                 })
 
                 let subscriptions = List<Subscription>()
 
-                currentRealm?.execute({ realm in
+                realm?.execute({ realm in
                     func queueRoomValuesForUpdate(_ object: JSON) {
                         guard
                             let rid = object["_id"].string,
@@ -114,13 +132,8 @@ struct SubscriptionsClient: APIClient {
                     resource.update?.forEach(queueRoomValuesForUpdate)
                     realm.add(subscriptions, update: true)
                 }, completion: completion)
-            case .error(let error):
-                switch error {
-                case .version:
-                    self.fetchRoomsFallback(updatedSince: updatedSince, realm: realm, completion: completion)
-                default:
-                    completion?()
-                }
+            case .error:
+                completion?()
             }
         }
     }
@@ -135,7 +148,7 @@ struct SubscriptionsClient: APIClient {
             switch result {
             case .resource(let resource):
                 if let subscription = Subscription.find(rid: rid, realm: currentRealm) {
-                    try? currentRealm?.write {
+                    Realm.executeOnMainThread(realm: currentRealm) { _ in
                         let subscriptionCopy = Subscription(value: subscription)
 
                         subscriptionCopy.usersRoles.removeAll()
@@ -155,128 +168,153 @@ struct SubscriptionsClient: APIClient {
             }
         }
     }
+}
 
-    // fallback for servers < 0.60.0
-    func fetchSubscriptionsFallback(updatedSince: Date?, realm: Realm? = Realm.current, completion: (() -> Void)?) {
-        var params: [[String: Any]] = []
+// MARK: Members List
 
-        if let updatedSince = updatedSince {
-            params.append(["$date": Date.intervalFromDate(updatedSince)])
+extension SubscriptionsClient {
+    func fetchMembersList(
+        subscription: Subscription,
+        options: APIRequestOptionSet = [],
+        realm: Realm? = Realm.current,
+        completion: @escaping (
+            _ response: APIResponse<RoomMembersResource>,
+            _ users: [UnmanagedUser]?
+        ) -> Void
+    ) {
+        let request = RoomMembersRequest(roomId: subscription.rid, type: subscription.type)
+        api.fetch(request, options: options) { response in
+            switch response {
+            case .resource(let resource):
+                var users = [UnmanagedUser]()
+                realm?.execute({ realm in
+                    resource.members?.forEach { member in
+                        let user = User.getOrCreate(realm: realm, values: member, updates: nil)
+                        realm.add(user, update: true)
+
+                        if let unmanaged = user.unmanaged {
+                            users.append(unmanaged)
+                        }
+                    }
+                }, completion: {
+                    completion(response, users)
+                })
+            case .error:
+                completion(response, nil)
+            }
+        }
+    }
+}
+
+// MARK: Subsctiption actions
+
+extension SubscriptionsClient {
+    func favoriteSubscription(subscription: Subscription) {
+        SubscriptionManager.toggleFavorite(subscription) { (response) in
+            DispatchQueue.main.async {
+                if response.isError() {
+                    subscription.updateFavorite(!subscription.favorite)
+                }
+            }
         }
 
-        let requestSubscriptions = [
-            "msg": "method",
-            "method": "subscriptions/get",
-            "params": params
-        ] as [String: Any]
+        subscription.updateFavorite(!subscription.favorite)
+    }
 
-        let currentRealm = realm
+    func hideSubscription(subscription: Subscription) {
+        let hideRequest = SubscriptionHideRequest(rid: subscription.rid, subscriptionType: subscription.type)
+        api.fetch(hideRequest, completion: nil)
 
-        SocketManager.send(requestSubscriptions) { response in
-            guard !response.isError() else { return Log.debug(response.result.string) }
-
-            let subscriptions = List<Subscription>()
-
-            // List is used the first time user opens the app
-            let list = response.result["result"].array
-
-            // Update & Removed is used on updates
-            let updated = response.result["result"]["update"].array
-            let removed = response.result["result"]["remove"].array
-
-            currentRealm?.execute({ realm in
-                guard let auth = AuthManager.isAuthenticated(realm: realm) else { return }
-
-                list?.forEach { object in
-                    let subscription = Subscription.getOrCreate(realm: realm, values: object, updates: { (object) in
-                        object?.auth = auth
-                    })
-
-                    subscriptions.append(subscription)
-                }
-
-                updated?.forEach { object in
-                    let subscription = Subscription.getOrCreate(realm: realm, values: object, updates: { (object) in
-                        object?.auth = auth
-                    })
-
-                    subscriptions.append(subscription)
-                }
-
-                removed?.forEach { object in
-                    let subscription = Subscription.getOrCreate(realm: realm, values: object, updates: { (object) in
-                        object?.auth = nil
-                    })
-
-                    subscriptions.append(subscription)
-                }
-
-                auth.lastSubscriptionFetchWithLastMessage = Date.serverDate
-
-                realm.add(subscriptions, update: true)
-                realm.add(auth, update: true)
-
-                completion?()
-            })
+        Realm.executeOnMainThread { realm in
+            realm.delete(subscription)
         }
     }
 
-    // fallback for servers < 0.62.0
-    func fetchRoomsFallback(updatedSince: Date?, realm: Realm? = Realm.current, completion: (() -> Void)?) {
-        var params: [[String: Any]] = []
-
-        if let updatedSince = updatedSince {
-            params.append(["$date": Date.intervalFromDate(updatedSince)])
+    func markRead(subscription: Subscription) {
+        api.fetch(SubscriptionReadRequest(rid: subscription.rid), completion: nil)
+        Realm.executeOnMainThread { _ in
+            subscription.alert = false
         }
+    }
 
-        let requestRooms = [
-            "msg": "method",
-            "method": "rooms/get",
-            "params": params
-            ] as [String: Any]
+    func markUnread(subscription: Subscription) {
+        api.fetch(SubscriptionUnreadRequest(rid: subscription.rid), completion: nil)
+        Realm.executeOnMainThread { _ in
+            subscription.alert = true
+        }
+    }
+}
 
-        let currentRealm = Realm.current
+// MARK: History
 
-        SocketManager.send(requestRooms) { response in
-            guard !response.isError() else { return Log.debug(response.result.string) }
+extension RoomHistoryResource {
+    func messages(realm: Realm?) -> [Message]? {
+        return raw?["messages"].arrayValue.map {
+            let message = Message()
+            message.map($0, realm: realm)
+            return message
+        }
+    }
+}
 
-            currentRealm?.execute({ realm in
-                guard let auth = AuthManager.isAuthenticated(realm: realm) else { return }
-                auth.lastSubscriptionFetchWithLastMessage = Date.serverDate.addingTimeInterval(-1)
-                realm.add(auth, update: true)
-            })
+extension SubscriptionsClient {
+    func loadHistory(
+        subscription: Subscription,
+        latest: Date?,
+        count: Int = 30,
+        realm: Realm? = Realm.current,
+        completion: @escaping (_ lastMessageDate: Date?) -> Void
+    ) {
+        let request = RoomHistoryRequest(
+            roomType: subscription.type,
+            roomId: subscription.rid,
+            latest: latest,
+            count: count
+        )
 
-            let subscriptions = List<Subscription>()
+        var lastMessageDate: Date?
 
-            // List is used the first time user opens the app
-            let list = response.result["result"].array
+        api.fetch(request) { response in
+            switch response {
+            case .resource(let resource):
+                var requestMessageDetails: [String] = []
 
-            // Update is used on updates
-            let updated = response.result["result"]["update"].array
+                realm?.execute({ realm in
+                    let messages = resource.messages(realm: realm) ?? []
+                    realm.add(messages, update: true)
 
-            currentRealm?.execute({ realm in
-                list?.forEach { object in
-                    if let rid = object["_id"].string {
-                        if let subscription = Subscription.find(rid: rid, realm: realm) {
-                            subscription.mapRoom(object, realm: realm)
-                            subscriptions.append(subscription)
+                    for message in messages where !message.threadMessageId.isEmpty {
+                        if Message.find(withIdentifier: message.threadMessageId) != nil {
+                            // Main message exists, we don't need to do anything
+                        } else {
+                            requestMessageDetails.append(message.threadMessageId)
                         }
                     }
-                }
 
-                updated?.forEach { object in
-                    if let rid = object["_id"].string {
-                        if let subscription = Subscription.find(rid: rid, realm: realm) {
-                            subscription.mapRoom(object, realm: realm)
-                            subscriptions.append(subscription)
-                        }
-                    }
-                }
+                    lastMessageDate = messages.last?.createdAt
+                }, completion: {
+                    completion(lastMessageDate)
 
-                realm.add(subscriptions, update: true)
-            }, completion: {
-                completion?()
-            })
+                    // Check for main message of a thread that doesn't exists on the database yet
+                    // and needs to be requested
+                    requestMessageDetails.forEach({ (identifier) in
+                        API.current()?.fetch(GetMessageRequest(msgId: identifier), completion: { response in
+                            switch response {
+                            case .resource(let resource):
+                                if let message = resource.message {
+                                    realm?.execute({ realm in
+                                        realm.add(message, update: true)
+                                    })
+                                }
+                            default:
+                                break
+                            }
+                        })
+                    })
+                })
+            case .error:
+                completion(lastMessageDate)
+            }
         }
     }
 }

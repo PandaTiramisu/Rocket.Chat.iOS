@@ -57,7 +57,7 @@ class HighlightLayoutManager: NSLayoutManager {
 
 @IBDesignable class RCTextView: UIView {
 
-    private var textView: UITextView!
+    var textView: UITextView!
     private var customEmojiViews: [EmojiView] = []
 
     weak var delegate: ChatMessageCellProtocol?
@@ -77,7 +77,7 @@ class HighlightLayoutManager: NSLayoutManager {
 
     func addCustomEmojiIfNeeded() {
         message?.enumerateAttributes(in: NSRange(location: 0, length: message.length), options: [], using: { attributes, crange, _ in
-            if let attachment = attributes[NSAttributedStringKey.attachment] as? NSTextAttachment {
+            if let attachment = attributes[NSAttributedString.Key.attachment] as? NSTextAttachment {
                 DispatchQueue.main.async {
                     guard let position1 = self.textView.position(from: self.textView.beginningOfDocument, offset: crange.location) else { return }
                     guard let position2 = self.textView.position(from: position1, offset: crange.length) else { return }
@@ -88,6 +88,7 @@ class HighlightLayoutManager: NSLayoutManager {
                     let emojiView = EmojiView(frame: rect)
                     emojiView.backgroundColor = .white
                     emojiView.isUserInteractionEnabled = false
+                    emojiView.applyTheme()
 
                     if let imageUrlData = attachment.contents,
                             let imageUrlString = String(data: imageUrlData, encoding: .utf8),
@@ -126,12 +127,16 @@ class HighlightLayoutManager: NSLayoutManager {
     }
 
     private func configureTextView() {
+        textView.isScrollEnabled = false
+        textView.adjustsFontForContentSizeCategory = true
         textView.textContainerInset = .zero
         textView.textContainer.lineFragmentPadding = 0
         textView.backgroundColor = .clear
         textView.dataDetectorTypes = .all
         textView.isEditable = false
         textView.delegate = self
+        textView.isAccessibilityElement = true
+        textView.accessibilityTraits = .staticText
     }
 
     override func layoutSubviews() {
@@ -149,24 +154,33 @@ class HighlightLayoutManager: NSLayoutManager {
 
 extension RCTextView: UITextViewDelegate {
 
-    func textView(_ textView: UITextView, shouldInteractWith URL: URL, in characterRange: NSRange) -> Bool {
+    func textView(_ textView: UITextView, shouldInteractWith URL: URL, in characterRange: NSRange, interaction: UITextItemInteraction) -> Bool {
+        if interaction != .invokeDefaultAction {
+            return false
+        }
+
         if URL.scheme == "http" || URL.scheme == "https" {
             delegate?.openURL(url: URL)
             return false
         }
 
         if let deepLink = DeepLink(url: URL) {
-            guard
-                case let .mention(name) = deepLink,
-                let user = User.find(username: name),
-                let start = textView.position(from: textView.beginningOfDocument, offset: characterRange.location),
-                let end = textView.position(from: start, offset: characterRange.length),
-                let range = textView.textRange(from: start, to: end)
-            else {
-                return false
-            }
+            switch deepLink {
+            case let .mention(name):
+                guard
+                    let user = User.find(username: name),
+                    let start = textView.position(from: textView.beginningOfDocument, offset: characterRange.location),
+                    let end = textView.position(from: start, offset: characterRange.length),
+                    let range = textView.textRange(from: start, to: end)
+                else {
+                    return false
+                }
 
-            MainSplitViewController.chatViewController?.presentActionSheetForUser(user, source: (textView, textView.firstRect(for: range)))
+                MainSplitViewController.chatViewController?.presentActionSheetForUser(user, source: (textView, textView.firstRect(for: range)))
+                return false
+            default:
+                return UIApplication.shared.canOpenURL(URL)
+            }
         }
 
         return false

@@ -26,7 +26,10 @@ class LegalTableViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        if let nav = navigationController as? BaseNavigationController {
+        navigationItem.title = localized("auth.login.legal")
+        navigationItem.leftBarButtonItem?.accessibilityLabel = VOLocalizedString("auth.close.label")
+
+        if let nav = navigationController as? AuthNavigationController {
             nav.setGrayTheme()
         }
     }
@@ -71,4 +74,10 @@ extension LegalTableViewController {
         }
     }
 
+}
+
+// MARK: Disable Theming
+
+extension LegalTableViewController {
+    override func applyTheme() { }
 }

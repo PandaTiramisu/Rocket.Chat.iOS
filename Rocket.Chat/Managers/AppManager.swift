@@ -61,12 +61,20 @@ struct AppManager {
         guard
             let appDelegate  = UIApplication.shared.delegate as? AppDelegate,
             let nav = appDelegate.window?.rootViewController as? UINavigationController,
-            let chatController = nav.viewControllers.first as? ChatViewController
+            let chatController = nav.viewControllers.first as? MessagesViewController
         else {
             return nil
         }
 
         return chatController.subscription?.rid
+    }
+
+    static var isOnAuthFlow: Bool {
+        guard !(UIApplication.shared.delegate?.window??.rootViewController is MainSplitViewController) else {
+            return false
+        }
+
+        return true
     }
 
     // MARK: Localization
@@ -105,11 +113,23 @@ struct AppManager {
       Default language
     */
     static var defaultLanguage = "en"
+
+    // MARK: Video & Audio Call
+
+    static var isVideoCallAvailable: Bool {
+        return (NSLocale.current as NSLocale).countryCode != "CN"
+    }
 }
 
 extension AppManager {
 
-    static func changeSelectedServer(index: Int) {
+    static func changeSelectedServer(index: Int, completion: (() -> Void)? = nil) {
+        guard index != DatabaseManager.selectedIndex else {
+            DatabaseManager.changeDatabaseInstance(index: index)
+            reloadApp(completion: completion)
+            return
+        }
+
         SocketManager.disconnect { _, _ in
             DatabaseManager.selectDatabase(at: index)
             DatabaseManager.changeDatabaseInstance(index: index)
@@ -117,10 +137,11 @@ extension AppManager {
             AuthSettingsManager.shared.updateCachedSettings()
             AuthManager.recoverAuthIfNeeded()
 
-            reloadApp()
+            reloadApp(completion: completion)
         }
     }
 
+    @discardableResult
     static func changeToServerIfExists(serverUrl: URL, roomId: String? = nil) -> Bool {
         guard let index = DatabaseManager.serverIndexForUrl(serverUrl) else {
             return false
@@ -128,18 +149,37 @@ extension AppManager {
 
         if index != DatabaseManager.selectedIndex {
             AppManager.initialRoomId = roomId
-            changeSelectedServer(index: index)
-        } else {
-            changeSelectedServer(index: index)
         }
 
+        changeSelectedServer(index: index)
+
         return true
+    }
+
+    static func changeToRoom(_ roomId: String, on serverHost: String) {
+        guard
+            let serverUrl = URL(string: serverHost),
+            let index = DatabaseManager.serverIndexForUrl(serverUrl)
+        else {
+            return
+        }
+
+        guard index == DatabaseManager.selectedIndex else {
+            changeToServerIfExists(serverUrl: serverUrl, roomId: roomId)
+            return
+        }
+
+        AppManager.initialRoomId = roomId
+        if let auth = AuthManager.isAuthenticated(),
+            let subscription = Subscription.notificationSubscription(auth: auth) {
+            AppManager.open(room: subscription)
+        }
     }
 
     static func addServer(serverUrl: String, credentials: DeepLinkCredentials? = nil, roomId: String? = nil) {
         SocketManager.disconnect { _, _ in }
         AppManager.initialRoomId = roomId
-        WindowManager.open(.auth(serverUrl: serverUrl, credentials: credentials))
+        WindowManager.open(.auth(serverUrl: serverUrl, credentials: credentials), viewControllerIdentifier: "ConnectServerNav")
     }
 
     static func changeToOrAddServer(serverUrl: String, credentials: DeepLinkCredentials? = nil, roomId: String? = nil) {
@@ -151,20 +191,38 @@ extension AppManager {
         }
     }
 
-    static func reloadApp() {
+    static func reloadApp(completion: (() -> Void)? = nil) {
         SocketManager.sharedInstance.connectionHandlers.removeAllObjects()
         SocketManager.disconnect { (_, _) in
             DispatchQueue.main.async {
-                UIApplication.shared.statusBarStyle = .default
                 if AuthManager.isAuthenticated() != nil {
-                    if let currentUser = AuthManager.currentUser() {
-                        BugTrackingCoordinator.identifyCrashReports(withUser: currentUser)
-                    }
-
                     WindowManager.open(.subscriptions)
+
+                    let server = AuthManager.selectedServerHost()
+                    AnalyticsManager.log(
+                        event: .serverSwitch(
+                            server: server,
+                            serverCount: DatabaseManager.servers?.count ?? 1
+                        )
+                    )
+
+                    AnalyticsManager.set(
+                        userProperty: .server(
+                            server: server
+                        )
+                    )
                 } else {
-                    WindowManager.open(.auth(serverUrl: "", credentials: nil))
+                    if AppManager.supportsMultiServer {
+                        WindowManager.open(.auth(serverUrl: "", credentials: nil))
+                    } else {
+                        WindowManager.open(
+                            .auth(serverUrl: "", credentials: nil),
+                            viewControllerIdentifier: "ConnectServerNav"
+                        )
+                    }
                 }
+
+                completion?()
             }
         }
     }
@@ -175,7 +233,7 @@ extension AppManager {
 extension AppManager {
 
     @discardableResult
-    static func open(room: Subscription) -> ChatViewController? {
+    static func open(room: Subscription, animated: Bool = true) -> MessagesViewController? {
         guard
             let appDelegate  = UIApplication.shared.delegate as? AppDelegate,
             let mainViewController = appDelegate.window?.rootViewController as? MainSplitViewController
@@ -184,26 +242,59 @@ extension AppManager {
         }
 
         if mainViewController.detailViewController as? BaseNavigationController != nil {
-            if let controller = UIStoryboard.controller(from: "Chat", identifier: "Chat") as? ChatViewController {
+            if let controller = UIStoryboard.controller(from: "Chat", identifier: "Chat") as? MessagesViewController {
                 controller.subscription = room
 
                 // Close all presenting controllers, modals & pushed
-                mainViewController.presentedViewController?.dismiss(animated: true, completion: nil)
+                mainViewController.presentedViewController?.dismiss(animated: animated, completion: nil)
+                mainViewController.detailViewController?.presentedViewController?.dismiss(animated: animated, completion: nil)
 
                 let nav = BaseNavigationController(rootViewController: controller)
                 mainViewController.showDetailViewController(nav, sender: self)
                 return controller
             }
-        } else if let controller = UIStoryboard.controller(from: "Chat", identifier: "Chat") as? ChatViewController {
+        } else if let controller = UIStoryboard.controller(from: "Chat", identifier: "Chat") as? MessagesViewController {
             controller.subscription = room
 
             if let nav = mainViewController.viewControllers.first as? UINavigationController {
                 // Close all presenting controllers, modals & pushed
-                nav.presentedViewController?.dismiss(animated: true, completion: nil)
-                nav.popToRootViewController(animated: true)
+                nav.presentedViewController?.dismiss(animated: animated, completion: nil)
+                nav.popToRootViewController(animated: animated)
 
                 // Push the new controller to the stack
-                nav.pushViewController(controller, animated: true)
+                nav.pushViewController(controller, animated: animated)
+
+                return controller
+            }
+        }
+
+        return nil
+    }
+
+    @discardableResult
+    static func openVideoCall(room: Subscription, animated: Bool = true) -> JitsiViewController? {
+        guard
+            let appDelegate  = UIApplication.shared.delegate as? AppDelegate,
+            let mainViewController = appDelegate.window?.rootViewController as? MainSplitViewController,
+            let mainNav = mainViewController.viewControllers.first as? UINavigationController
+        else {
+            return nil
+        }
+
+        let storyboard = UIStoryboard(name: "Jitsi", bundle: Bundle.main)
+        if let nav = storyboard.instantiateInitialViewController() as? UINavigationController {
+            if let controller = nav.viewControllers.first as? JitsiViewController {
+                controller.viewModel.subscription = room.unmanaged
+
+                nav.modalTransitionStyle = .coverVertical
+
+                if let presentedViewController = mainNav.presentedViewController {
+                    presentedViewController.dismiss(animated: animated, completion: {
+                        mainNav.present(nav, animated: true, completion: nil)
+                    })
+                } else {
+                    mainNav.present(nav, animated: true, completion: nil)
+                }
 
                 return controller
             }
@@ -265,6 +356,43 @@ extension AppManager {
         // If not, fetch it
         let currentRealm = Realm.current
         let request = RoomInfoRequest(roomName: name)
+        API.current()?.fetch(request) { response in
+            switch response {
+            case .resource(let resource):
+                DispatchQueue.main.async {
+                    Realm.executeOnMainThread(realm: currentRealm, { realm in
+                        guard let values = resource.channel else { return }
+
+                        let subscription = Subscription.getOrCreate(realm: realm, values: values, updates: { object in
+                            object?.rid = object?.identifier ?? ""
+                        })
+
+                        realm.add(subscription, update: true)
+                    })
+
+                    _ = openRoom()
+                }
+            case .error:
+                break
+            }
+        }
+    }
+
+    static func openRoom(rid: String, type: SubscriptionType = .channel) {
+        func openRoom() -> Bool {
+            guard let channel = Subscription.find(rid: rid) else { return  false }
+            open(room: channel)
+            return true
+        }
+
+        // Check if we already have this channel
+        if openRoom() == true {
+            return
+        }
+
+        // If not, fetch it
+        let currentRealm = Realm.current
+        let request = RoomInfoRequest(roomId: rid, type: type)
         API.current()?.fetch(request) { response in
             switch response {
             case .resource(let resource):

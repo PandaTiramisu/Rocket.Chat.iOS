@@ -10,16 +10,34 @@ import Foundation
 import SwiftyJSON
 import RealmSwift
 
+// swiftlint:disable cyclomatic_complexity
 extension Subscription: ModelMappeable {
     func map(_ values: JSON, realm: Realm?) {
         if self.identifier == nil {
             self.identifier = values["_id"].stringValue
         }
 
-        self.rid = values["rid"].stringValue
+        if let rid = values["rid"].string {
+            self.rid = rid
+        }
+
+        if let prid = values["prid"].string {
+            self.prid = prid
+        }
+
         self.name = values["name"].stringValue
-        self.fname = values["fname"].stringValue
+
+        if let fname = values["fname"].string {
+            self.fname = fname
+        } else {
+            if self.fname.isEmpty {
+                self.fname = self.name
+            }
+        }
+
         self.unread = values["unread"].int ?? 0
+        self.userMentions = values["userMentions"].int ?? 0
+        self.groupMentions = values["groupMentions"].int ?? 0
         self.open = values["open"].bool ?? false
         self.alert = values["alert"].bool ?? false
         self.favorite = values["f"].bool ?? false
@@ -47,10 +65,44 @@ extension Subscription: ModelMappeable {
         if let lastSeen = values["ls"]["$date"].double {
             self.lastSeen = Date.dateFromInterval(lastSeen)
         }
+
+        self.usersCount = values["usersCount"].int ?? 0
+
+        mapNotifications(values)
+    }
+
+    func mapNotifications(_ values: JSON) {
+        self.disableNotifications = values["disableNotifications"].bool ?? false
+        self.hideUnreadStatus = values["hideUnreadStatus"].bool ?? false
+
+        if let desktopNotificationsString = values["desktopNotifications"].string {
+            self.desktopNotifications = SubscriptionNotificationsStatus(rawValue: desktopNotificationsString) ?? .default
+        }
+
+        if let audioNotificationsString = values["audioNotifications"].string {
+            self.audioNotifications = SubscriptionNotificationsStatus(rawValue: audioNotificationsString) ?? .default
+        }
+
+        if let mobilePushNotificationsString = values["mobilePushNotifications"].string {
+            self.mobilePushNotifications = SubscriptionNotificationsStatus(rawValue: mobilePushNotificationsString) ?? .default
+        }
+
+        if let emailNotificationsString = values["emailNotifications"].string {
+            self.emailNotifications = SubscriptionNotificationsStatus(rawValue: emailNotificationsString) ?? .default
+        }
+
+        if let audioNotificationValueString = values["audioNotificationValue"].string {
+            self.audioNotificationValue = SubscriptionNotificationsAudioValue(rawValue: audioNotificationValueString) ?? .default
+        }
+
+        if let duration = values["desktopNotificationDuration"].int {
+            self.desktopNotificationDuration = duration
+        }
     }
 
     func mapRoom(_ values: JSON, realm: Realm?) {
         self.roomDescription = values["description"].stringValue
+        self.roomAnnouncement = values["announcement"].stringValue
         self.roomTopic = values["topic"].stringValue
 
         if let broadcast = values["broadcast"].bool {
@@ -83,9 +135,22 @@ extension Subscription: ModelMappeable {
         }
 
         if values["lastMessage"].dictionary != nil {
+            if let userIdentifier = values["lastMessage"]["u"]["_id"].string {
+                if let realm = realm {
+                    if let user = realm.object(ofType: User.self, forPrimaryKey: userIdentifier as AnyObject) {
+                        user.map(values["u"], realm: realm)
+                        realm.add(user, update: true)
+                    } else {
+                        let user = User()
+                        user.map(values["u"], realm: realm)
+                        realm.add(user, update: true)
+                    }
+                }
+            }
+
             let message = Message()
             message.map(values["lastMessage"], realm: realm)
-            message.subscription = self
+            message.rid = rid
 
             if !(self.roomLastMessage == message) {
                 realm?.add(message, update: true)

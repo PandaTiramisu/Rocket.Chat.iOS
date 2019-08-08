@@ -41,16 +41,16 @@ class LoginTableViewController: BaseTableViewController {
             let prefix = NSAttributedString(
                 string: localized("auth.login.create_account_prefix"),
                 attributes: [
-                    NSAttributedStringKey.font: UIFont.systemFont(ofSize: 13, weight: .regular),
-                    NSAttributedStringKey.foregroundColor: UIColor.RCTextFieldGray()
+                    NSAttributedString.Key.font: UIFont.preferredFont(forTextStyle: .body),
+                    NSAttributedString.Key.foregroundColor: UIColor.RCTextFieldGray()
                 ]
             )
 
             let createAccount = NSAttributedString(
                 string: localized("auth.login.create_account"),
                 attributes: [
-                    NSAttributedStringKey.font: UIFont.systemFont(ofSize: 13, weight: .semibold),
-                    NSAttributedStringKey.foregroundColor: UIColor.RCSkyBlue()
+                    NSAttributedString.Key.font: UIFont.preferredFont(forTextStyle: .body),
+                    NSAttributedString.Key.foregroundColor: UIColor.RCSkyBlue()
                 ]
             )
 
@@ -63,7 +63,7 @@ class LoginTableViewController: BaseTableViewController {
 
             let combinationRange = NSRange(location: 0, length: combinedString.length)
             combinedString.addAttributes(
-                [NSAttributedStringKey.paragraphStyle: paragraphStyle],
+                [NSAttributedString.Key.paragraphStyle: paragraphStyle],
                 range: combinationRange
             )
 
@@ -77,23 +77,8 @@ class LoginTableViewController: BaseTableViewController {
         }
     }
 
-    var heightForSignUpRow: CGFloat {
-        let forgotPasswordY = forgotPasswordCell.frame.origin.y
-        let forgotPasswordHeight = forgotPasswordCell.frame.height
-        var safeAreaInsets: CGFloat
-        if #available(iOS 11.0, *) {
-            safeAreaInsets = tableView.safeAreaInsets.top + tableView.safeAreaInsets.bottom
-        } else {
-            safeAreaInsets = tableView.contentInset.top
-        }
-
-        let contentSize = forgotPasswordY + forgotPasswordHeight + safeAreaInsets
-
-        return tableView.bounds.height - contentSize
-    }
-
     var serverVersion: Version?
-    var serverURL: URL!
+    var serverURL: URL?
     var serverPublicSettings: AuthSettings?
     var temporary2FACode: String?
 
@@ -109,7 +94,6 @@ class LoginTableViewController: BaseTableViewController {
     }
 
     var shouldShowCreateAccount = false
-    var isKeyboardAppearing = false
     var isRequesting = false
 
     // MARK: Life Cycle
@@ -117,42 +101,30 @@ class LoginTableViewController: BaseTableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        navigationItem.title = serverURL.host
-
-        if shouldShowCreateAccount {
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(keyboardWillAppear(_:)),
-                name: NSNotification.Name.UIKeyboardWillShow,
-                object: nil
-            )
-
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(keyboardWillDisappear(_:)),
-                name: NSNotification.Name.UIKeyboardWillHide,
-                object: nil
-            )
-        }
+        navigationItem.title = serverURL?.host
+        navigationItem.rightBarButtonItem?.accessibilityLabel = VOLocalizedString("auth.more.label")
 
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(hideKeyboard))
         view.addGestureRecognizer(tapGesture)
 
         updateFieldsPlaceholders()
         updateUsernameSettings()
+
+        if !AppManager.supportsMultiServer {
+            navigationItem.hidesBackButton = true
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
-        if let nav = navigationController as? BaseNavigationController {
+        if let nav = navigationController as? AuthNavigationController {
             nav.setGrayTheme()
         }
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-
         textFieldUsername.becomeFirstResponder()
     }
 
@@ -190,37 +162,28 @@ class LoginTableViewController: BaseTableViewController {
         }
     }
 
-    // MARK: Keyboard Management
-
-    @objc func keyboardWillAppear(_ notification: Notification) {
-        isKeyboardAppearing = true
-        tableView.beginUpdates()
-        tableView.endUpdates()
-    }
-
-    @objc func keyboardWillDisappear(_ notification: Notification) {
-        isKeyboardAppearing = false
-        tableView.beginUpdates()
-        tableView.endUpdates()
-    }
-
     @objc func hideKeyboard() {
         view.endEditing(true)
     }
 
     // MARK: Actions
 
+    func authenticateWithDeepLinkCredentials(_ credentials: DeepLinkCredentials) {
+        view.layoutIfNeeded()
+        startLoading()
+        AuthManager.auth(token: credentials.token, completion: self.handleAuthenticationResponse)
+    }
+
     @IBAction func buttonOnePasswordDidPressed(_ sender: Any) {
         let siteURL = serverPublicSettings?.siteURL ?? ""
-        OnePasswordExtension.shared().findLogin(forURLString: siteURL, for: self, sender: sender) { [weak self] (login, _) in
-            if login == nil {
-                return
-            }
 
-            self?.textFieldUsername.text = login?[AppExtensionUsernameKey] as? String
-            self?.textFieldPassword.text = login?[AppExtensionPasswordKey] as? String
-            self?.temporary2FACode = login?[AppExtensionTOTPKey] as? String
-            self?.authenticateWithUsernameOrEmail()
+        OnePasswordExtension.shared().findLogin(forURLString: siteURL, for: self, sender: sender) { (login, error) in
+            guard error == nil, let login = login else { return }
+
+            self.textFieldUsername.text = login[AppExtensionUsernameKey] as? String
+            self.textFieldPassword.text = login[AppExtensionPasswordKey] as? String
+            self.temporary2FACode = login[AppExtensionTOTPKey] as? String
+            self.authenticateWithUsernameOrEmail()
         }
     }
 
@@ -256,8 +219,9 @@ class LoginTableViewController: BaseTableViewController {
             textField.placeholder = "john.appleseed@apple.com"
             textField.textContentType = UITextContentType.emailAddress
             textField.keyboardType = .emailAddress
+            textField.clearButtonMode = .whileEditing
 
-            _ = NotificationCenter.default.addObserver(forName: .UITextFieldTextDidChange, object: textField, queue: OperationQueue.main) { _ in
+            _ = NotificationCenter.default.addObserver(forName: UITextField.textDidChangeNotification, object: textField, queue: OperationQueue.main) { _ in
                 sendAction.isEnabled = textField.text?.isValidEmail ?? false
             }
         })
@@ -309,24 +273,28 @@ class LoginTableViewController: BaseTableViewController {
         createAccountButton.isEnabled = true
     }
 
-    @objc func popSelf() {
-        navigationController?.popViewController(animated: true)
+    // MARK: Navigation
+
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if let controller = segue.destination as? TwoFactorAuthTableViewController {
+            controller.username = textFieldUsername.text ?? ""
+            controller.password = textFieldPassword.text ?? ""
+            controller.token = temporary2FACode ?? ""
+        }
     }
 
 }
 
 extension LoginTableViewController {
+
     override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         if indexPath.row == createAccountRow && !shouldShowCreateAccount {
             return 0
         }
 
-        if indexPath.row == createAccountRow && !isKeyboardAppearing {
-            return heightForSignUpRow
-        }
-
         return super.tableView(tableView, heightForRowAt: indexPath)
     }
+
 }
 
 extension LoginTableViewController: UITextFieldDelegate {
@@ -348,4 +316,12 @@ extension LoginTableViewController: UITextFieldDelegate {
         return true
     }
 
+}
+
+// MARK: Disable Theming
+
+extension LoginTableViewController {
+    override func applyTheme() {
+        self.forgotPasswordButton.setTitleColor(UIColor.RCBlue(), for: .normal)
+    }
 }

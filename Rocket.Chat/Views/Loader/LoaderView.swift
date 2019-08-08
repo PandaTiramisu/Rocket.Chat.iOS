@@ -37,7 +37,7 @@ class LoaderView: UIView {
         let duration: CFTimeInterval = 1.4
         let beginTime = CACurrentMediaTime()
         let beginTimes: [CFTimeInterval] = [0, 0.16, 0.32]
-        let timingFunction = CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseInEaseOut)
+        let timingFunction = CAMediaTimingFunction(name: CAMediaTimingFunctionName.easeInEaseOut)
         let animation = CAKeyframeAnimation(keyPath: "transform.scale")
 
         // Animation
@@ -60,7 +60,7 @@ class LoaderView: UIView {
                 clockwise: false
             )
 
-            circleLayer.fillColor = theme?.auxiliaryBackground.cgColor ?? fillColor
+            circleLayer.fillColor = theme?.auxiliaryTintColor.cgColor ?? fillColor
             circleLayer.backgroundColor = nil
             circleLayer.path = path.cgPath
             circleLayer.frame = CGRect(x: 0, y: 0, width: size.width, height: size.height)

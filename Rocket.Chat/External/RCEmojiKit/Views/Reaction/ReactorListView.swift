@@ -47,7 +47,6 @@ final class ReactorListView: UIView {
 
     @IBOutlet weak var reactorTableView: UITableView! {
         didSet {
-            reactorTableView.bounces = false
             reactorTableView.tableFooterView = UIView()
 
             reactorTableView.dataSource = self
@@ -55,8 +54,6 @@ final class ReactorListView: UIView {
         }
     }
 
-    var isPopover = false
-    var closePressed: () -> Void = { }
     var selectedReactor: (String, CGRect) -> Void = { _, _ in }
     var configureCell: (ReactorCell) -> Void = { _ in }
 
@@ -84,8 +81,9 @@ final class ReactorListView: UIView {
         commonInit()
     }
 
-    @IBAction func closePressed(_ sender: UIBarButtonItem) {
-        closePressed()
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        applyTheme()
     }
 }
 
@@ -145,8 +143,8 @@ extension ReactorListView: UITableViewDelegate {
 
         view.addSubview(stackView)
 
+        view.setThemeColor("backgroundColor: bannerBackground")
         view.applyTheme()
-        view.backgroundColor = #colorLiteral(red: 0.4980838895, green: 0.4951269031, blue: 0.5003594756, alpha: 0.09813784247)
 
         return view
     }
@@ -159,27 +157,5 @@ extension ReactorListView: UITableViewDelegate {
         tableView.deselectRow(at: indexPath, animated: true)
         let rect = tableView.rectForRow(at: indexPath)
         selectedReactor(model.reactionViewModels[indexPath.section].reactors[indexPath.row], rect)
-    }
-}
-
-extension ReactorListView {
-    override var theme: Theme? {
-        guard let theme = super.theme else { return nil }
-        guard isPopover else { return theme }
-        let popoverTheme = Theme(
-            backgroundColor: theme.focusedBackground,
-            titleText: theme.titleText,
-            bodyText: theme.bodyText,
-            controlText: theme.controlText,
-            auxiliaryText: theme.auxiliaryText,
-            tintColor: theme.tintColor,
-            hyperlinkColor: theme.hyperlinkColor,
-            focusedBackground: theme.focusedBackground,
-            auxiliaryBackground: theme.auxiliaryBackground,
-            mutedAccent: theme.mutedAccent,
-            strongAccent: theme.strongAccent,
-            appearence: theme.appearence
-        )
-        return popoverTheme
     }
 }

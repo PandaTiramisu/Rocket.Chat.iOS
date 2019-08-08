@@ -206,7 +206,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>3.0.0</string>
+	<string>3.5.0</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleURLTypes</key>
@@ -217,12 +217,12 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>rocketchat</string>
-				<string>com.googleusercontent.apps.662030055877-9qc3lqsbgif4k1ktl89dqeaec3m163i4</string>
+				<string>com.googleusercontent.apps.673693445664-dumairnsk1sbkca5nmsq2b5kdglqpc0a</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>180</string>
+	<string>256</string>
 	<key>Fabric</key>
 	<dict>
 		<key>APIKey</key>
@@ -265,15 +265,26 @@
 		</dict>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>To take photos and record videos</string>
+	<string>NSCameraUsageDescription</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>To record and upload audio and videos</string>
+	<string>NSMicrophoneUsageDescription</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>To save images to your library</string>
+	<string>NSPhotoLibraryAddUsageDescription</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>To upload photos from your library</string>
+	<string>NSPhotoLibraryUsageDescription</string>
 	<key>RC_MIN_SERVER_VERSION</key>
-	<string>0.54.0</string>
+	<string>0.62.0</string>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemIconType</key>
+			<string>UIApplicationShortcutIconTypeAdd</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>add-server-shortcut</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>addserver</string>
+		</dict>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

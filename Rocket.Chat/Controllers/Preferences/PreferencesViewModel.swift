@@ -21,11 +21,15 @@ final class PreferencesViewModel {
     internal let contactus = localized("myaccount.settings.contactus")
     internal let license = localized("myaccount.settings.license")
     internal let language = localized("myaccount.settings.language")
-    internal let appicon = localized("myaccount.settings.appicon")
     internal let webBrowser = localized("myaccount.settings.web_browser")
+    internal let appicon = localized("myaccount.settings.appicon")
+    internal let review = localized("myaccount.settings.review")
+    internal let share = localized("myaccount.settings.share")
     internal let theme = localized("theme.settings.title")
 
     internal let licenseURL = URL(string: "https://github.com/RocketChat/Rocket.Chat.iOS/blob/develop/LICENSE")
+    internal let shareURL = URL(string: "https://itunes.apple.com/app/rocket-chat/id1148741252?ls=1&mt=8")
+    internal let reviewURL = URL(string: "itms-apps://itunes.apple.com/app/id1148741252?action=write-review&mt=8")
 
     internal let trackingTitle = localized("myaccount.settings.tracking.title")
     internal var trackingFooterText = localized("myaccount.settings.tracking.footer")
@@ -51,7 +55,7 @@ final class PreferencesViewModel {
     }
 
     internal var trackingValue: Bool {
-        return !BugTrackingCoordinator.isCrashReportingDisabled
+        return !AnalyticsCoordinator.isUsageDataLoggingDisabled
     }
 
     internal var formattedVersion: String {
@@ -112,18 +116,14 @@ final class PreferencesViewModel {
     }
 
     internal var canChangeAppIcon: Bool {
-        if #available(iOS 10.3, *) {
-            return UIApplication.shared.supportsAlternateIcons
-        } else {
-            return false
-        }
+        return UIApplication.shared.supportsAlternateIcons
     }
 
     internal var canViewAdministrationPanel: Bool {
         return user?.canViewAdminPanel() ?? false
     }
 
-    #if DEBUG || BETA
+    #if DEBUG || BETA || TEST
     internal let canOpenFLEX = true
     #else
     internal let canOpenFLEX = false
@@ -134,7 +134,7 @@ final class PreferencesViewModel {
     internal func numberOfRowsInSection(_ section: Int) -> Int {
         switch section {
         case 0: return 1
-        case 1: return numberOfRowsInSectionOne()
+        case 1: return canChangeAppIcon ? 7 : 6
         case 2: return canViewAdministrationPanel ? 1 : 0
         case 3: return 3
         case 4: return 1
@@ -142,18 +142,6 @@ final class PreferencesViewModel {
         case 6: return canOpenFLEX ? 1 : 0
         default: return 0
         }
-    }
-
-    private func numberOfRowsInSectionOne() -> Int {
-        var totalCount = 5
-        if #available(iOS 11, *) {
-            // Do nothing
-        } else {
-            totalCount -= 1
-        }
-
-        totalCount -= canChangeAppIcon ? 0 : 1
-        return totalCount
     }
 
     // MARK: Helpers

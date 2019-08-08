@@ -43,7 +43,11 @@ final class NewRoomViewController: BaseViewController {
             footer: nil,
             cells: [
                 FormCell(
-                    cell: .textField(placeholder: localized("new_room.cell.channel_name.title"), icon: #imageLiteral(resourceName: "Hashtag")),
+                    cell: .textField(
+                        placeholder: localized("new_room.cell.channel_name.title"),
+                        icon: UIImage(named: "Cell Subscription Hashtag")?.imageWithTint(.RCDarkGray()),
+                        textLimit: 40
+                    ),
                     key: "room name",
                     defaultValue: [],
                     enabled: true
@@ -95,8 +99,8 @@ final class NewRoomViewController: BaseViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillChangeFrame(_:)), name: .UIKeyboardWillShow, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillChangeFrame(_:)), name: .UIKeyboardWillHide, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillChangeFrame(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillChangeFrame(_:)), name: UIResponder.keyboardWillHideNotification, object: nil)
 
         let user = NewRoomViewController.user
         let createPrivate = user?.hasPermission(.createPrivateChannels) ?? false
@@ -193,9 +197,9 @@ extension NewRoomViewController: FormTableViewDelegate {
             let cellRoomName = referenceOfCells["room name"] as? TextFieldTableViewCell {
 
             if value {
-                cellRoomName.imgLeftIcon.image = #imageLiteral(resourceName: "Hashtag")
+                cellRoomName.imgLeftIcon.image = UIImage(named: "Cell Subscription Hashtag")?.imageWithTint(.RCDarkGray())
             } else {
-                cellRoomName.imgLeftIcon.image = #imageLiteral(resourceName: "Lock")
+                cellRoomName.imgLeftIcon.image = UIImage(named: "Cell Subscription Lock")?.imageWithTint(.RCDarkGray())
             }
         }
     }
@@ -291,8 +295,8 @@ extension NewRoomViewController {
 
     @objc func keyboardWillChangeFrame(_ notification: Notification) {
         guard let info = notification.userInfo else { return }
-        guard let animationDuration = info[UIKeyboardAnimationDurationUserInfoKey] as? TimeInterval else { return }
-        guard let keyboardFrame = info[UIKeyboardFrameEndUserInfoKey] as? NSValue else { return }
+        guard let animationDuration = info[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval else { return }
+        guard let keyboardFrame = info[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else { return }
 
         let keyboardHeight = keyboardFrame.cgRectValue.height
         guard let contentInsets = getTableViewInsets(keyboardHeight: keyboardHeight) else { return }

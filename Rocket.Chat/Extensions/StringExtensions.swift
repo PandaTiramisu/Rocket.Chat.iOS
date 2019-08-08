@@ -29,6 +29,26 @@ extension String {
         return nil
     }
 
+    func md5() -> String {
+        if let stringData = self.data(using: String.Encoding.utf8) {
+            return hexStringFromData(input: md5Digest(stringData: stringData) as NSData)
+        }
+
+        return ""
+    }
+
+    fileprivate func md5Digest(stringData: Data) -> Data {
+        var digestData = Data(count: Int(CC_MD5_DIGEST_LENGTH))
+
+        _ = digestData.withUnsafeMutableBytes { digestBytes in
+            stringData.withUnsafeBytes { stringBytes in
+                CC_MD5(stringBytes, CC_LONG(stringData.count), digestBytes)
+            }
+        }
+
+        return digestData
+    }
+
     func sha256() -> String {
         if let stringData = self.data(using: String.Encoding.utf8) {
             return hexStringFromData(input: digest(input: stringData as NSData))
@@ -116,5 +136,17 @@ extension String {
         let command = String(components[0].dropFirst())
         let params = components.dropFirst().joined(separator: " ")
         return (command: command, params: params)
+    }
+
+    var boolValue: Bool {
+        return NSString(string: self).boolValue
+    }
+
+    func capitalizingFirstLetter() -> String {
+        return prefix(1).uppercased() + self.lowercased().dropFirst()
+    }
+
+    mutating func capitalizeFirstLetter() {
+        self = self.capitalizingFirstLetter()
     }
 }

@@ -60,10 +60,8 @@ final class ServersListView: UIView {
         }
     }
 
-    var presentAddServer: (() -> Void)?
-
     private func animates(_ animations: @escaping VoidCompletion, completion: VoidCompletion? = nil) {
-        UIView.animate(withDuration: 0.15, delay: 0, options: UIViewAnimationOptions(rawValue: 7 << 16), animations: {
+        UIView.animate(withDuration: 0.15, delay: 0, options: UIView.AnimationOptions(rawValue: 7 << 16), animations: {
             animations()
         }, completion: { finished in
             if finished {
@@ -89,6 +87,7 @@ final class ServersListView: UIView {
             })
         }
 
+        instance.applyTheme()
         return instance
     }
 
@@ -109,20 +108,19 @@ final class ServersListView: UIView {
     // MARK: Server Management
 
     @IBAction func buttonAddNewServerDidPressed(sender: Any) {
-        presentAddServer?()
+        WindowManager.open(
+            .auth(
+                serverUrl: "",
+                credentials: nil
+            ),
+            viewControllerIdentifier: viewModel.connectServerNavIdentifier
+        )
     }
 
     func selectServer(at indexPath: IndexPath) {
         if indexPath.row == DatabaseManager.selectedIndex {
             close()
         } else {
-            DatabaseManager.selectDatabase(at: indexPath.row)
-            DatabaseManager.changeDatabaseInstance(index: indexPath.row)
-
-            SocketManager.disconnect { (_, _) in
-                WindowManager.open(.subscriptions)
-            }
-
             AppManager.changeSelectedServer(index: indexPath.row)
         }
     }
@@ -137,6 +135,11 @@ final class ServersListView: UIView {
 
         alert.actions.append(UIAlertAction(title: localized("servers.action.disconnect.alert.confirm"), style: .destructive, handler: { _ in
             API.server(index: indexPath.row)?.client(PushClient.self).deletePushToken()
+
+            if indexPath.row < DatabaseManager.selectedIndex {
+                DatabaseManager.selectDatabase(at: DatabaseManager.selectedIndex - 1)
+            }
+
             DatabaseManager.removeDatabase(at: indexPath.row)
 
             self.viewModel.updateServersList()
@@ -203,6 +206,29 @@ extension ServersListView: UITableViewDelegate {
 // MARK: Themeable
 
 extension ServersListView {
+    override var theme: Theme? {
+        guard let theme = super.theme else { return nil }
+        return Theme(
+            backgroundColor: theme.appearence == .light ? theme.backgroundColor : theme.focusedBackground,
+            focusedBackground: theme.focusedBackground,
+            chatComponentBackground: theme.chatComponentBackground,
+            auxiliaryBackground: theme.auxiliaryBackground,
+            bannerBackground: theme.bannerBackground,
+            titleText: theme.titleText,
+            bodyText: theme.bodyText,
+            borderColor: theme.borderColor,
+            controlText: theme.controlText,
+            auxiliaryText: theme.auxiliaryText,
+            tintColor: theme.tintColor,
+            auxiliaryTintColor: theme.auxiliaryTintColor,
+            actionTintColor: theme.actionTintColor,
+            actionBackgroundColor: theme.actionBackgroundColor,
+            mutedAccent: theme.mutedAccent,
+            strongAccent: theme.strongAccent,
+            appearence: theme.appearence
+        )
+    }
+
     override func applyTheme() {
         super.applyTheme()
         guard let theme = theme else { return }

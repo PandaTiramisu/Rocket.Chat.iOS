@@ -8,13 +8,7 @@
 
 import UIKit
 
-protocol SubscriptionsTitleViewDelegate: class {
-    func userDidPressServerName()
-}
-
 final class SubscriptionsTitleView: UIView {
-
-    weak var delegate: SubscriptionsTitleViewDelegate?
 
     var state: SocketConnectionState = SocketManager.sharedInstance.state {
         didSet {
@@ -39,15 +33,16 @@ final class SubscriptionsTitleView: UIView {
         }
     }
 
-    @IBAction func buttonServerDidPressed(sender: Any) {
-        delegate?.userDidPressServerName()
-    }
-
     func updateServerName(name: String?) {
         buttonServer.setTitle(name, for: .normal)
     }
 
     func updateTitleImage(reverse: Bool = false) {
+        guard AppManager.supportsMultiServer else {
+            buttonServer.setImage(nil, for: .normal)
+            return
+        }
+
         if let image = UIImage(named: "Server Selector")?.imageWithTint(theme?.tintColor ?? .RCBlue()) {
             if reverse, let cgImage = image.cgImage {
                 let rotatedImage = UIImage(cgImage: cgImage, scale: image.scale, orientation: .downMirrored)
@@ -77,11 +72,7 @@ final class SubscriptionsTitleView: UIView {
     }
 
     override var intrinsicContentSize: CGSize {
-        if #available(iOS 11.0, *) {
-            return UILayoutFittingExpandedSize
-        }
-
-        return UILayoutFittingCompressedSize
+        return UIView.layoutFittingExpandedSize
     }
 
 }
@@ -92,7 +83,8 @@ extension SubscriptionsTitleView {
     override func applyTheme() {
         super.applyTheme()
         guard let theme = theme else { return }
-        buttonServer.setTitleColor(theme.tintColor, for: .normal)
+
         buttonServer.tintColor = theme.tintColor
+        buttonServer.setTitleColor(theme.tintColor, for: .normal)
     }
 }

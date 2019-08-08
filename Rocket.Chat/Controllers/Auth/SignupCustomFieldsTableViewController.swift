@@ -47,6 +47,7 @@ class SignupCustomFieldsTableViewController: BaseTableViewController {
         super.viewDidLoad()
 
         navigationItem.title = SocketManager.sharedInstance.serverURL?.host
+        navigationItem.rightBarButtonItem?.accessibilityLabel = VOLocalizedString("auth.more.label")
 
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(hideKeyboard))
         view.addGestureRecognizer(tapGesture)
@@ -121,4 +122,10 @@ extension SignupCustomFieldsTableViewController: UITextFieldDelegate {
         let nextTextField = view.viewWithTag(textField.tag + 1) as? UITextField
         nextTextField?.becomeFirstResponder()
     }
+}
+
+// MARK: Disable Theming
+
+extension SignupCustomFieldsTableViewController {
+    override func applyTheme() { }
 }

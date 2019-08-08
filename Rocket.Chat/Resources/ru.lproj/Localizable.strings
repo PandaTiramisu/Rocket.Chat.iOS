@@ -12,6 +12,9 @@
 "error.login.title" = "Упс!";
 "error.login.message" = "При попытке входа в систему что-то пошло не так";
 
+"error.signup.title" = "Упс!";
+"error.signup.empty_input.message" = "Все поля обязательны для заполнения.";
+
 "error.login_unauthorized.title" = "Упс!";
 "error.login_unauthorized.message" = "Ваши учетные данные были отклонены! Пожалуйста, попробуйте еще раз.";
 
@@ -49,9 +52,6 @@
 "alert.unsupported_feature.title" = "Функция не поддерживается";
 "alert.unsupported_feature.message" = "Версия этого сервера: %@. Эта функция поддерживается только в версиях %@ и выше.";
 
-"alert.push_token_error.title" = "Предупреждение";
-"alert.push_token_error.message" = "Вы все равно можете получать push-уведомления с этого сервера из-за проблемы с серверами версии ниже 0.60.0.";
-
 "alert.upload_error.title" = "Ошибка загрузки";
 "alert.upload_error.message" = "При загрузке файла произошла ошибка. Пожалуйста, попробуйте еще раз.";
 
@@ -82,58 +82,66 @@
 "alert.update_profile_success.title" = "Профиль обновлен";
 "alert.update_password_success.title" = "Пароль обновлен";
 
+"alert.logout.confirmation.title" = "Выход с этого сервера";
+"alert.logout.confirmation.message" = "Вы действительно хотите выйти из \"%@\"?";
+"alert.logout.confirmation.confirm" = "Да, выйти";
+
 // Connection Redirect
 "connection.server.redirect.alert.title" = "Сервер изменил URL-адрес";
 "connection.server.redirect.alert.message" = "Похоже, этот сервер изменил URL-адрес на: \ n \ n% @ \ n \ nВы хотите обновить URL-адрес?";
 "connection.server.redirect.alert.confirm" = "Да, изменить URL-адрес";
 
 // Socket Connection
-"connection.title" = "Sign in your server"; // TODO
-"connection.button_connect" = "Connect"; // TODO
+"connection.title" = "Войдите на ваш сервер";
+"connection.button_connect" = "Соединение";
+"connection.server_url.placeholder" = "your-company.rocket.chat"; // TODO
 "connection.offline.banner.message" = "Вы в автономном режиме, попробуйте подключиться снова";
 "connection.connecting.banner.message" = "Соединение...";
-"connection.waiting_for_network.banner.message" = "Waiting for network"; // TODO
+"connection.waiting_for_network.banner.message" = "Ожидание сети";
 
 // Onboarding
-"onboarding.label_welcome" = "Welcome to Rocket Chat"; // TODO
-"onboarding.label_subtitle" = "Open Source Communication"; // TODO
-"onboarding.button_connect_server" = "Connect with a server"; // TODO
-"onboarding.button_create_server" = "Create a new server"; // TODO
-"onboarding.button_join_community_prefix" = "Join in the community"; // TODO
+"onboarding.label_welcome" = "Добро пожаловать в Rocket Chat";
+"onboarding.label_subtitle" = "Team Communication"; // TODO
+"onboarding.button_connect_server" = "Соединиться с сервером";
+"onboarding.button_create_server" = "Создать новый сервер";
+"onboarding.button_join_community_prefix" = "Присоединиться к сообществу";
 
 // Auth
 "auth.connect.button_connect" = "Соединение";
 "auth.connect.ssl_required" = "Требуется, чтобы ваш сервер поддерживал SSL";
 "auth.connect.connecting" = "Выполняется соединение";
-"auth.email_auth_prefix" = "Login with "; // TODO
-"auth.email_auth" = "e-mail"; // TODO
-"auth.login_service_prefix" = "Continue with "; // TODO
+"auth.connect.ssl.certificate.do_you_have" = "Do you have a certificate?"; // TODO
+"auth.connect.ssl.certificate.apply" = "Apply Your Certificate"; // TODO
+"auth.connect.ssl.certificate.your_certificate" = "Your Certificate"; // TODO
+"auth.connect.ssl.certificate.password.title" = "Certificate Password"; // TODO
+"auth.connect.ssl.certificate.password.message" = "What's the password for your certificate?"; // TODO
+"auth.connect.ssl.certificate.remove" = "Remove Certificate"; // TODO
+"auth.email_auth_prefix" = "Войти с ";
+"auth.email_auth" = "e-mail";
+"auth.login_service_prefix" = "Продолжить с ";
 
-"auth.signup_title" = "Sign up"; // TODO
-"auth.signup.button_register" = "Register"; // TODO
-"auth.signup.button_next" = "Next"; // TODO
-"auth.signup.custom_fields_title" = "Complete your register"; // TODO
+"auth.signup_title" = "Зарегистрироваться";
+"auth.signup.button_register" = "Регистрация";
+"auth.signup.button_next" = "Дальше";
+"auth.signup.custom_fields_title" = "Завершить вашу регистрацию";
 
-"auth.login.login_title" = "Login"; // TODO
-"auth.login.button_login_title" = "Login"; // TODO
-"auth.login.create_account_prefix" = "Don't have an account?"; // TODO
-"auth.login.create_account" = "\nCreate an Account"; // TODO
+"auth.login.login_title" = "Вход";
+"auth.login.button_login_title" = "Войти";
+"auth.login.create_account_prefix" = "У вас нет аккаунта?";
+"auth.login.create_account" = "\nСоздать аккаунт";
 "auth.login.username.placeholder" = "Электронная почта или имя пользователя";
 "auth.login.password.placeholder" = "Пароль";
 "auth.login.buttonRegister" = "Создать новый аккаунт";
 "auth.login.buttonResetPassword" = "Забыли пароль";
 "auth.login.agree_label" = "Продолжая, вы соглашаетесь с нашими";
 "auth.login.agree_and" = "и";
+"auth.login.legal" = "Legal"; // TODO
 "auth.login.agree_termsofservice" = "Условиями использования";
 "auth.login.agree_privacypolicy" = "Политикой конфиденциальности";
 
 "auth.forgot_password.title" = "Забыли пароль?";
 "auth.forgot_password.message" = "Введите ваш адрес электронной почты";
 "auth.forgot_password.success" = "Если эта электронная почта зарегистрирована, мы отправим вам инструкции по сбросу пароля. Если вы не получите письмо в ближайшее время, вернитесь и повторите попытку.";
-
-"alert.logout.confirmation.title" = "Logout from this server"; // TODO
-"alert.logout.confirmation.message" = "Are you sure you want to logout from \"%@\"?"; // TODO
-"alert.logout.confirmation.confirm" = "Yes, logout me"; // TODO
 
 // Subscriptions
 "subscriptions.search" = "Поиск";
@@ -142,14 +150,20 @@
 "subscriptions.unreads" = "Непрочитанные";
 "subscriptions.favorites" = "Избранные";
 "subscriptions.channels" = "Каналы";
+"subscriptions.groups" = "Приватные группы";
 "subscriptions.direct_messages" = "Личная переписка";
-"subscriptions.conversations" = "Conversations"; //TODO
+"subscriptions.conversations" = "Диалоги";
 "subscriptions.you" = "вы";
 "subscriptions.messages" = "Сообщения";
 "subscriptions.list.you_initial" = "Вы";
 "subscriptions.list.no_message" = "Нет сообщений";
 "subscriptions.list.sent_an_attachment" = "отправить вложение";
 "subscriptions.list.date.yesterday" = "Вчера";
+"subscriptions.list.actions.read" = "Read"; // TODO
+"subscriptions.list.actions.unread" = "Unread"; // TODO
+"subscriptions.list.actions.favorite" = "Favorite"; // TODO
+"subscriptions.list.actions.unfavorite" = "Unfavorite"; // TODO
+"subscriptions.list.actions.hide" = "Hide"; // TODO
 
 // Servers
 "servers.add_new_team" = "Добавить новую команду";
@@ -164,6 +178,7 @@
 "status.online" = "Онлайн";
 "status.away" = "Отошел";
 "status.busy" = "Занят";
+"status.offline" = "Офлайн";
 "status.invisible" = "Невидимый";
 
 // New Room View
@@ -192,19 +207,31 @@
 "chat.muted" = "Вы были заглушены";
 "chat.loading_messages" = "Загрузка сообщений...";
 "chat.unread_separator" = "новые сообщения";
+"chat.preview.actions.read" = "Mark as read"; // TODO
+"chat.preview.actions.unread" = "Mark as unread"; // TODO
+"chat.preview.actions.favorite" = "Favorite"; // TODO
+"chat.preview.actions.unfavorite" = "Unfavorite"; // TODO
+"chat.preview.actions.hide" = "Hide"; // TODO
+
+// Read Receipts
+"chat.read_receipt_list.title" = "Прочитано";
+"chat.read_receipt_list.title.loading" = "Загрузка...";
+"chat.read_receipt_list.title.empty" = "Никем не прочитано";
 
 // Chat Message Actions
+"chat.message.actions.info" = "Информация о сообщении";
 "chat.message.actions.react" = "Добавить реакцию";
-"chat.message.actions.block" = "Блокировать сообщения от пользователя";
 "chat.message.actions.report" = "Пожаловаться на сообщение";
 "chat.message.actions.edit" = "Редактировать";
 "chat.message.actions.copy" = "Копировать";
 "chat.message.actions.pin" = "Прикрепить сообщение";
 "chat.message.actions.unpin" = "Открепить сообщение";
-"chat.message.actions.star" = "Пометить сообщение"; // TODO
-"chat.message.actions.unstar" = "Снять отметку"; // TODO
+"chat.message.actions.star" = "Пометить сообщение";
+"chat.message.actions.unstar" = "Снять отметку";
 "chat.message.actions.quote" = "Цитата";
 "chat.message.actions.reply" = "Ответить";
+"chat.message.actions.join_video_call" = "Join Video Call"; // TODO
+"chat.message.actions.permalink" = "Permalink"; //TODO
 "chat.message.actions.delete" = "Удалить сообщение";
 "chat.message.actions.delete.confirm.title" = "Удалить это сообщение?";
 "chat.message.actions.delete.confirm.message" = "Вы уверены, что хотите удалить это сообщение? Этот процесс необратим.";
@@ -215,7 +242,6 @@
 "chat.message.actions.discard.confirm.yes" = "Да, отменить";
 "chat.message.actions.resend" = "Отправить повторно";
 "chat.message.actions.resend_all" = "Отправить повторно все";
-"Send" = "Отправить"; //SLKTextInputbar.m
 
 // Chat Message Report
 "chat.message.report.success.title" = "Жалоба отправлена";
@@ -247,6 +273,12 @@
 "chat.drawing.settings.color.selected" = "Выбранный цвет";
 "chat.drawing.settings.color.others" = "Выберите цвет ниже:";
 
+// Chat Typing
+"chat.users_are_typing" = "%@ are typing..."; // TODO
+"chat.user_is_typing" = "%@ is typing..."; // TODO
+"chat.typing" = "typing..."; // TODO
+"chat.several_typing" = "several users are typing..."; // TODO
+
 // Message Types
 "chat.message.type.room_name_changed" = "Название канала изменено на: %@ by %@";
 "chat.message.type.user_added_by" = "Пользователь %@ добавлен пользователем %@";
@@ -262,6 +294,14 @@
 "chat.message.type.room_archived" = "Этот канал был заархивирован пользователем %@";
 "chat.message.type.room_unarchived" = "Этот канал был разархивирован пользователем %@";
 "chat.message.type.message_pinned" = "Прикрепленное сообщение:";
+"chat.message.type.message_snippeted" = "Created a snippet: \"%@\""; // TODO
+"chat.message.type.room_changed_privacy" = "Room privacy changed to \"%@\" by %@"; // TODO
+"chat.message.type.room_changed_topic" = "Room topic changed to \"%@\" by %@"; // TODO
+"chat.message.type.room_changed_announcement" = "Room annoucement changed to \"%@\" by %@"; // TODO
+"chat.message.type.room_changed_description" = "Room description changed to \"%@\" by %@"; // TODO
+"chat.message.type.video_call_started" = "Video call started by %@"; // TODO
+"chat.message.type.discussion_created" = "Started a discussion:"; // TODO
+"chat.message.type.user_joined_conversation" = "Has joined the conversation"; // TODO
 
 // Chat Information
 "chat.info.title" = "Инфо";
@@ -269,15 +309,23 @@
 "chat.info.item.no_topic" = "Нет темы";
 "chat.info.item.description" = "Описание";
 "chat.info.item.no_description" = "Нет описания";
+"chat.info.item.announcement" = "Announcement"; // TODO
+"chat.info.item.no_announcement" = "No announcement"; // TODO
 "chat.info.item.notifications" = "Уведомления";
 "chat.info.item.members" = "Пользователи";
 "chat.info.item.pinned" = "Прикрепленные";
 "chat.info.item.starred" = "Отмеченные";
 "chat.info.item.mentions" = "Упоминания";
 "chat.info.item.files" = "Файлы";
+"chat.info.item.share" = "Поделиться";
 
 // Members List
 "chat.members.list.title" = "Пользователи";
+
+// Add Users
+"chat.add_users.title" = "Добавить пользователей";
+"chat.add_users.confirm.title" = "Добавить этого пользователя?";
+"chat.add_users.confirm.message" = "Вы уверены, что хотите добавить '%@' в '%@'?";
 
 // Messages List
 "chat.messages.list.title" = "Сообщения";
@@ -289,14 +337,21 @@
 "chat.messages.files.list.title" = "Файлы";
 "chat.messages.files.list.empty" = "Файлов не найдено";
 
+// Upload Banner
+"chat.banner.upload.uploading" = "Выгрузка %@";
+"chat.banner.upload.error" = "Ошибка при загрузке %@";
+"chat.banner.upload.retry" = "Попробуйте снова";
+
 // Settings
 "myaccount.settings.title" = "Настройки";
 "myaccount.settings.administration" = "Администрирование";
-"myaccount.settings.logout" = "Logout from %@"; // TODO
+"myaccount.settings.logout" = "Выход из %@";
 "myaccount.settings.contactus" = "Связаться с нами";
 "myaccount.settings.profile" = "Профиль";
 "myaccount.settings.license" = "Лицензия";
 "myaccount.settings.language" = "Язык";
+"myaccount.settings.review" = "Review this App"; // TODO
+"myaccount.settings.share" = "Share this App"; // TODO
 "myaccount.settings.appicon" = "Иконка приложения";
 "myaccount.settings.version" = "Версия: %@ (%@)";
 "myaccount.settings.server_version" = "Версия сервера: %@";
@@ -314,6 +369,55 @@
 "myaccount.settings.language.title" = "Изменить язык";
 "myaccount.settings.language.reset" = "Восстановление значений по умолчанию";
 "myaccount.settings.language.message" = "Вы изменили языковые настройки. Вы должны перезапустить Rocket.Chat, прежде чем новые настройки вступят в силу.";
+
+// Notifications preferences
+"myaccount.settings.notifications.title" = "Notification Preferences"; // TODO
+"myaccount.settings.notifications.save" = "Save"; // TODO
+
+"myaccount.settings.notifications.receive.title" = "Receive Notifications"; // TODO
+"myaccount.settings.notifications.receive.footer" = "Receive notifications from %@"; // TODO
+"myaccount.settings.notifications.show.title" = "Show Unread Counter"; // TODO
+"myaccount.settings.notifications.show.footer" = "Unread counter is displayed as a badge on to the right of the channel, in the list."; // TODO
+
+"myaccount.settings.notifications.inapp" = "In-app and Desktop"; // TODO
+"myaccount.settings.notifications.inapp.alerts" = "Alerts"; // TODO
+"myaccount.settings.notifications.inapp.footer" = "Displays a banner at the top of the screen when the app is open, and displays a notification on desktop."; // TODO
+
+"myaccount.settings.notifications.mobile" = "Mobile"; // TODO
+"myaccount.settings.notifications.mobile.alerts" = "Alerts"; // TODO
+"myaccount.settings.notifications.mobile.footer" = "These notifications are delivered to your device when the app is not open."; // TODO
+
+"myaccount.settings.notifications.desktop" = "Desktop options"; // TODO
+"myaccount.settings.notifications.desktop.audio" = "Audio"; // TODO
+"myaccount.settings.notifications.desktop.sound" = "Sound"; // TODO
+"myaccount.settings.notifications.desktop.duration" = "Notification Duration"; // TODO
+
+"myaccount.settings.notifications.mail" = "Email"; // TODO
+"myaccount.settings.notifications.email.alerts" = "Alerts"; // TODO
+
+"myaccount.settings.notifications.duration.default" = "Default"; // TODO
+"myaccount.settings.notifications.duration.seconds" = "seconds"; // TODO
+
+"alert.update_notifications_preferences_success.title" = "Preferences saved"; // TODO
+
+"alert.update_notifications_preferences_save_error.title" = "Failed to update notifications preferences"; // TODO:
+"alert.update_notifications_preferences_save_error.message" = "Something wrong happened while saving your notification preferences. Please, try again."; // TODO
+
+// Enum SubscriptionNotificationsStatus
+"subscription.notifications.status.default" = "Default"; // TODO
+"subscription.notifications.status.nothing" = "Nothing"; // TODO
+"subscription.notifications.status.all" = "All"; // TODO
+"subscription.notifications.status.mentions" = "Mentions"; // TODO
+
+// Enum SubscriptionNotificationsAudioValue
+"subscription.notifications.audio.value.none" = "None"; // TODO
+"subscription.notifications.audio.value.default" = "Default"; // TODO
+"subscription.notifications.audio.value.beep" = "Beep"; // TODO
+"subscription.notifications.audio.value.chelle" = "Chelle"; // TODO
+"subscription.notifications.audio.value.ding" = "Ding"; // TODO
+"subscription.notifications.audio.value.droplet" = "Droplet"; // TODO
+"subscription.notifications.audio.value.highbell" = "Highbell"; // TODO
+"subscription.notifications.audio.value.seasons" = "Seasons"; // TODO
 
 // Choose Web Browser
 "web_browser.safari.title" = "Safari";
@@ -351,16 +455,81 @@
 "myaccount.settings.profile.new_password.password_required.placeholder" = "Пароль";
 
 // User Action Sheet
-"user_action_sheet.conversation" = "Разговор";
+"user_action_sheet.info" = "Информация";
 "user_action_sheet.remove" = "Удалить с канала";
 "user_action_sheet.remove_confirm.title" = "Удалить этого пользователя";
 "user_action_sheet.remove_confirm.message" = "Вы действительно хотите удалить '%@' с канала?";
 
+// User Details
+"user_details.status" = "Status"; // TODO
+"user_details.role" = "Role"; // TODO
+"user_details.roles" = "Roles"; // TODO
+"user_details.email" = "Email"; // TODO
+"user_details.emails" = "Emails"; // TODO
+"user_details.timezone" = "Timezone"; // TODO
+"user_details.message_button" = "Message"; // TODO
+"user_details.voice_call_button" = "Voice Call"; // TODO
+"user_details.video_call_button" = "Video Call"; // TODO
+
+// Theme
+"theme.settings.title" = "Тема";
+"theme.settings.header" = "ВСЕ ТЕМЫ";
+"theme.settings.footer" = "Применение темы изменит внешний вид приложения.";
+"theme.light" = "Светлая";
+"theme.dark" = "Темная";
+"theme.black" = "Черная";
+
 // Sorting & Grouping Subscriptions
-"subscriptions.sorting.title.alphabetical" = "Sorting by name"; //TODO
-"subscriptions.sorting.title.activity" = "Sorting by activity"; //TODO
-"subscriptions.sorting.alphabetical" = "Alphabetical"; //TODO
-"subscriptions.sorting.activity" = "Activity"; //TODO
-"subscriptions.grouping.type" = "Group by type"; //TODO
-"subscriptions.grouping.favorites" = "Group by favorites"; //TODO
-"subscriptions.grouping.unread_top" = "Unread on top"; //TODO
+"subscriptions.sorting.title.alphabetical" = "Сортировать по имени";
+"subscriptions.sorting.title.activity" = "Сортировать по активности";
+"subscriptions.sorting.alphabetical" = "По алфавиту";
+"subscriptions.sorting.activity" = "Активности";
+"subscriptions.grouping.type" = "Группировать по типу";
+"subscriptions.grouping.favorites" = "Группировать по избранным";
+"subscriptions.grouping.unread_top" = "Непрочитанные свеху";
+
+// Shortcuts
+"shortcuts.type_message" = "Type message"; //TODO
+"shortcuts.preferences" = "Preferences"; //TODO
+"shortcuts.room_search" = "Rooms search"; //TODO
+"shortcuts.room_selection" = "Room selection 1...9"; //TODO
+"shortcuts.next_room" = "Next room"; //TODO
+"shortcuts.previous_room" = "Previous room"; //TODO
+"shortcuts.new_room" = "New room"; //TODO
+"shortcuts.room_actions" = "Room actions"; //TODO
+"shortcuts.upload_room" = "Upload to room"; //TODO
+"shortcuts.search_messages" = "Search messages"; //TODO
+"shortcuts.scroll_messages" = "Scroll messages"; //TODO
+"shortcuts.reply_latest" = "Reply to latest"; //TODO
+"shortcuts.server_selection" = "Server selection"; //TODO
+"shortcuts.server_selection_numbers" = "Server selection 1...9"; //TODO
+"shortcuts.add_server" = "Add server"; //TODO
+"shortcuts.change_theme" = "Change theme"; //TODO
+"shortcuts.send" = "Send"; //TODO
+"shortcuts.new_line" = "New line"; //TODO
+
+// Chat Components
+"chat.components.quote.replied" = "Replied"; //TODO
+"chat.components.quote.pinned" = "Pinned"; //TODO
+"chat.components.text_attachment.no_title" = "No title"; //TODO
+
+// Directory
+"directory.title" = "Directory"; // TODO
+"directory.filters.channels" = "Channels"; // TODO
+"directory.filters.users" = "Users"; // TODO
+"directory.filters.by" = "Search by"; // TODO
+"directory.filters.global.title" = "Search for global users"; // TODO
+"directory.filters.global.subtitle" = "If you turn-on, you can search for any user from others companies or servers. "; // TODO
+"directory.users.1_user" = "1 member"; // TODO
+"directory.users.x_users" = "%@ members"; // TODO
+
+// Discussions
+"discussion.no_messages" = "No messages yet"; // TODO
+"discussion.1_message" = "1 message"; // TODO
+"discussion.x_messages" = "%@ messages"; // TODO
+
+// Threads
+"threads.title" = "Threads"; // TODO
+"threads.no_replies" = "No replies"; // TODO
+"threads.1_reply" = "1 reply"; // TODO
+"threads.x_replies" = "%@ replies"; // TODO
