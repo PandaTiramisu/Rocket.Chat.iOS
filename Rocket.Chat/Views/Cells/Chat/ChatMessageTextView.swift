@@ -7,10 +7,11 @@
 //
 
 import UIKit
+import RocketChatViewController
 
 protocol ChatMessageTextViewProtocol: class {
-    func viewDidCollapseChange(view: UIView)
-    func openFileFromCell(attachment: Attachment)
+    func viewDidCollapseChange(viewModel: AnyChatItem)
+    func openFileFromCell(attachment: UnmanagedAttachment)
 }
 
 final class ChatMessageTextView: UIView {
@@ -46,20 +47,16 @@ final class ChatMessageTextView: UIView {
 
     func prepareView() {
         addGestureIfNeeded()
-        updateLeftBorder()
         updateLabels()
         updateImageView()
+        applyTheme()
     }
 
     // MARK: Layout
 
-    private func updateLeftBorder() {
-        viewLeftBorder.backgroundColor = viewModel?.color
-    }
-
     private func updateLabels() {
         labelTitle.text = viewModel?.title
-        labelDescription.attributedText = NSMutableAttributedString(string: viewModel?.text ?? "").transformMarkdown()
+        labelDescription.attributedText = NSMutableAttributedString(string: viewModel?.text ?? "").transformMarkdown(with: self.theme)
 
         if viewModel?.title.count == 0 {
             labelTitleHeightConstraint.constant = 0
@@ -75,21 +72,21 @@ final class ChatMessageTextView: UIView {
         }
 
         if let thumbURL = viewModel?.thumbURL {
-            imageViewThumb.sd_setImage(with: thumbURL, completed: { _, error, _, _ in
+            ImageManager.loadImage(with: thumbURL, into: imageViewThumb) { _, error in
                 let width = error != nil ? 0 : ChatMessageTextView.imageViewDefaultWidth
                 updateConstraint(width)
-            })
+            }
         } else {
             updateConstraint(0)
         }
     }
 
-    static func heightFor(collapsed: Bool, withText text: String?, isFile: Bool = false) -> CGFloat {
+    static func heightFor(with availableWidth: CGFloat, collapsed: Bool, text: String?, isFile: Bool = false) -> CGFloat {
         guard !isFile else {
             return defaultHeight
         }
 
-        let width = UIScreen.main.bounds.size.width - 73
+        let width = availableWidth - 73
         var textHeight: CGFloat = 1
 
         if let text = text, text.count > 0 {
@@ -108,12 +105,12 @@ final class ChatMessageTextView: UIView {
     @objc func viewDidTapped(_ sender: Any) {
         if viewModel?.isFile == false {
             viewModel?.toggleCollapse()
-            delegate?.viewDidCollapseChange(view: self)
+//            delegate?.viewDidCollapseChange(view: self)
         }
 
         if let attachment = viewModel?.attachment {
-            if attachment.titleLinkDownload {
-                delegate?.openFileFromCell(attachment: attachment)
+            if attachment.titleLinkDownload, let unmanaged = UnmanagedAttachment(attachment) {
+                delegate?.openFileFromCell(attachment: unmanaged)
             }
         }
     }
@@ -123,5 +120,17 @@ final class ChatMessageTextView: UIView {
         if !containsGesture {
             addGestureRecognizer(tapGesture)
         }
+    }
+}
+
+// MARK: Themeable
+
+extension ChatMessageTextView {
+    override func applyTheme() {
+        super.applyTheme()
+        guard let theme = theme else { return }
+        viewLeftBorder.backgroundColor = viewModel?.color ?? theme.auxiliaryText
+        labelDescription.textColor = theme.auxiliaryText
+        labelTitle.textColor = theme.controlText
     }
 }

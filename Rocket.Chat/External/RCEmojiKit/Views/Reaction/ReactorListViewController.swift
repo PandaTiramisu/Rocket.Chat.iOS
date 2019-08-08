@@ -8,6 +8,8 @@
 
 import Foundation
 
+extension ReactorListViewController: UserActionSheetPresenter {}
+
 final class ReactorListViewController: UIViewController, Closeable {
     override var preferredContentSize: CGSize {
         set { }
@@ -51,6 +53,8 @@ final class ReactorListViewController: UIViewController, Closeable {
         )
 
         title = NSLocalizedString("reactorlist.title", tableName: "RCEmojiKit", bundle: Bundle.main, value: "", comment: "")
+
+        ThemeManager.addObserver(self)
     }
 
     override func viewWillAppear(_ animated: Bool) {

@@ -11,9 +11,16 @@ import MBProgressHUD
 import SwiftyJSON
 
 // swiftlint:disable file_length type_body_length
-class EditProfileTableViewController: UITableViewController, MediaPicker {
+final class EditProfileTableViewController: BaseTableViewController, MediaPicker {
 
     static let identifier = String(describing: EditProfileTableViewController.self)
+
+    @IBOutlet weak var statusValueLabel: UILabel!
+    @IBOutlet weak var statusLabel: UILabel! {
+        didSet {
+            statusLabel.text = viewModel.statusTitle
+        }
+    }
 
     @IBOutlet weak var name: UITextField! {
         didSet {
@@ -42,7 +49,7 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
     @IBOutlet weak var avatarButton: UIButton!
 
     var avatarView: AvatarView = {
-        guard let avatarView = AvatarView.instantiateFromNib() else { return AvatarView() }
+        let avatarView = AvatarView()
         avatarView.isUserInteractionEnabled = false
         avatarView.translatesAutoresizingMaskIntoConstraints = false
         avatarView.layer.cornerRadius = 15
@@ -52,7 +59,7 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
     }()
 
     lazy var activityIndicator: UIActivityIndicatorView = {
-        let activityIndicator = UIActivityIndicatorView(activityIndicatorStyle: .gray)
+        let activityIndicator = UIActivityIndicatorView(style: .gray)
         activityIndicator.startAnimating()
         return activityIndicator
     }()
@@ -72,8 +79,8 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
 
     var numberOfSections: Int {
         guard !isLoading else { return 0 }
-        guard let authSettings = authSettings else { return 1 }
-        return !authSettings.isAllowedToEditProfile || !authSettings.isAllowedToEditPassword ? 1 : 2
+        guard let authSettings = authSettings else { return 2 }
+        return !authSettings.isAllowedToEditProfile || !authSettings.isAllowedToEditPassword ? 2 : 3
     }
 
     var canEditAnyInfo: Bool {
@@ -122,6 +129,11 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
         fetchUserData()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        updateUserStatus()
+    }
+
     // MARK: Setup
 
     func setupAvatarButton() {
@@ -132,7 +144,7 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
         avatarView.trailingAnchor.constraint(equalTo: avatarButton.trailingAnchor).isActive = true
 
         if let imageView = avatarButton.imageView {
-            avatarButton.bringSubview(toFront: imageView)
+            avatarButton.bringSubviewToFront(imageView)
         }
     }
 
@@ -176,15 +188,28 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
     }
 
     func bindUserData() {
-        avatarView.user = user
+        avatarView.username = user?.username
         name.text = user?.name
         username.text = user?.username
         email.text = user?.emails.first?.email
+
+        updateUserStatus()
+    }
+
+    func updateUserStatus() {
+        statusValueLabel.text = viewModel.userStatus
     }
 
     // MARK: State Management
 
+    var isEditingProfile = false {
+        didSet {
+            applyTheme()
+        }
+    }
+
     @objc func beginEditing() {
+        isEditingProfile = true
         navigationItem.title = viewModel.editingTitle
         navigationItem.rightBarButtonItem = saveButton
         navigationItem.hidesBackButton = true
@@ -198,6 +223,7 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
     }
 
     @objc func endEditing() {
+        isEditingProfile = false
         bindUserData()
 
         navigationItem.title = viewModel.title
@@ -219,21 +245,18 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
             name.isEnabled = true
         } else {
             name.isEnabled = false
-            name.textColor = .lightGray
         }
 
         if authSettings?.isAllowedToEditUsername ?? false {
             username.isEnabled = true
         } else {
             username.isEnabled = false
-            username.textColor = .lightGray
         }
 
         if authSettings?.isAllowedToEditEmail ?? false {
             email.isEnabled = true
         } else {
             email.isEnabled = false
-            email.textColor = .lightGray
         }
 
         if authSettings?.isAllowedToEditName ?? false {
@@ -249,11 +272,8 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
         hideKeyboard()
         avatarButton.isEnabled = false
         name.isEnabled = false
-        name.textColor = .black
         username.isEnabled = false
-        username.textColor = .black
         email.isEnabled = false
-        email.textColor = .black
     }
 
     // MARK: Actions
@@ -317,12 +337,10 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
 
         alert.addTextField(configurationHandler: { textField in
             textField.placeholder = localized("myaccount.settings.profile.password_required.placeholder")
-            if #available(iOS 11.0, *) {
-                textField.textContentType = .password
-            }
+            textField.textContentType = .password
             textField.isSecureTextEntry = true
 
-            _ = NotificationCenter.default.addObserver(forName: .UITextFieldTextDidChange, object: textField, queue: OperationQueue.main) { _ in
+            _ = NotificationCenter.default.addObserver(forName: UITextField.textDidChangeNotification, object: textField, queue: OperationQueue.main) { _ in
                 updateUserAction.isEnabled = !(textField.text?.isEmpty ?? false)
             }
         })
@@ -343,17 +361,19 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
         isUploadingAvatar = true
 
         let client = API.current()?.client(UploadClient.self)
-        client?.uploadAvatar(data: avatarFile.data, filename: avatarFile.name, mimetype: avatarFile.type, completion: { [weak self] in
-            guard let strongSelf = self else { return }
+        client?.uploadAvatar(data: avatarFile.data, filename: avatarFile.name, mimetype: avatarFile.type, completion: { [weak self] _ in
+            guard let self = self else { return }
 
-            if !strongSelf.isUpdatingUser {
-                strongSelf.alertSuccess(title: localized("alert.update_profile_success.title"))
+            if !self.isUpdatingUser {
+                self.alertSuccess(title: localized("alert.update_profile_success.title"))
             }
 
-            strongSelf.isUploadingAvatar = false
-            strongSelf.avatarView.avatarPlaceholder = UIImage(data: avatarFile.data)
-            strongSelf.stopLoading()
-            strongSelf.avatarFile = nil
+            self.isUploadingAvatar = false
+            self.avatarView.avatarPlaceholder = UIImage(data: avatarFile.data)
+            self.avatarView.refreshCurrentAvatar(withCachedData: avatarFile.data, completion: {
+                self.stopLoading()
+            })
+            self.avatarFile = nil
         })
     }
 
@@ -374,7 +394,7 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
 
         let updateUserRequest = UpdateUserRequest(user: user, currentPassword: currentPassword)
         api?.fetch(updateUserRequest) { [weak self] response in
-            guard let strongSelf = self else { return }
+            guard let self = self else { return }
 
             switch response {
             case .resource(let resource):
@@ -384,11 +404,11 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
                     return
                 }
 
-                strongSelf.user = resource.user
+                self.user = resource.user
                 stopLoading(true)
 
-                if !strongSelf.isUploadingAvatar {
-                    strongSelf.alertSuccess(title: localized("alert.update_profile_success.title"))
+                if !self.isUploadingAvatar {
+                    self.alertSuccess(title: localized("alert.update_profile_success.title"))
                 }
             case .error:
                 stopLoading(false)
@@ -490,7 +510,7 @@ class EditProfileTableViewController: UITableViewController, MediaPicker {
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         switch section {
-        case 0: return viewModel.profileSectionTitle
+        case 1: return viewModel.profileSectionTitle
         default: return ""
         }
     }
@@ -501,15 +521,13 @@ extension EditProfileTableViewController: UINavigationControllerDelegate {}
 
 extension EditProfileTableViewController: UIImagePickerControllerDelegate {
 
-    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String: Any]) {
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
         let filename = String.random()
         var file: FileUpload?
 
-        if let image = info[UIImagePickerControllerOriginalImage] as? UIImage {
-            guard let imageData = UIImageJPEGRepresentation(image, 0.1) else { return }
-
+        if let image = info[.editedImage] as? UIImage {
             file = UploadHelper.file(
-                for: imageData,
+                for: image.compressedForUpload,
                 name: "\(filename.components(separatedBy: ".").first ?? "image").jpeg",
                 mimeType: "image/jpeg"
             )
@@ -539,5 +557,22 @@ extension EditProfileTableViewController: UITextFieldDelegate {
 
         return true
     }
+}
 
+extension EditProfileTableViewController {
+    override func applyTheme() {
+        super.applyTheme()
+        guard let theme = view.theme else { return }
+
+        switch isEditingProfile {
+        case false:
+            name.textColor = theme.titleText
+            username.textColor = theme.titleText
+            email.textColor = theme.titleText
+        case true:
+            name.textColor = (authSettings?.isAllowedToEditName ?? false) ? theme.titleText : theme.auxiliaryText
+            username.textColor = (authSettings?.isAllowedToEditName ?? false) ? theme.titleText : theme.auxiliaryText
+            email.textColor = (authSettings?.isAllowedToEditName ?? false) ? theme.titleText : theme.auxiliaryText
+        }
+    }
 }

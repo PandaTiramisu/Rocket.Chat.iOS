@@ -28,13 +28,17 @@ struct ReactionViewModel {
 final class ReactionView: UIView {
     @IBOutlet var contentView: UIView! {
         didSet {
-            contentView.layer.borderWidth = 1
+            contentView.layer.borderWidth = 1.5
             contentView.layer.cornerRadius = 4
         }
     }
 
     @IBOutlet weak var emojiView: EmojiView!
-    @IBOutlet weak var countLabel: UILabel!
+    @IBOutlet weak var countLabel: UILabel! {
+        didSet {
+            countLabel.font = countLabel.font.bold()
+        }
+    }
 
     var tapRecognized: (UITapGestureRecognizer) -> Void = { _ in }
     var longPressRecognized: (UILongPressGestureRecognizer) -> Void = { _ in }
@@ -46,18 +50,15 @@ final class ReactionView: UIView {
     }
 
     func map(_ model: ReactionViewModel) {
-        if let imageUrl = model.imageUrl {
-            emojiView.emojiImageView.sd_setImage(with: URL(string: imageUrl), completed: nil)
+        if let imageUrlString = model.imageUrl, let imageUrl = URL(string: imageUrlString) {
+            ImageManager.loadImage(with: imageUrl, into: emojiView.emojiImageView)
         } else {
             emojiView.emojiLabel.text = Emojione.transform(string: model.emoji)
         }
 
         countLabel.text = model.count
 
-        let colors = model.highlight ? (#colorLiteral(red: 0.3098039216, green: 0.6901960784, blue: 0.9882352941, alpha: 1), #colorLiteral(red: 0.7411764706, green: 0.8823529412, blue: 0.9960784314, alpha: 1), #colorLiteral(red: 0.9529411765, green: 0.9764705882, blue: 1, alpha: 1)) : (#colorLiteral(red: 0.6666666667, green: 0.6666666667, blue: 0.6666666667, alpha: 1), #colorLiteral(red: 0.9058823529, green: 0.9058823529, blue: 0.9058823529, alpha: 1), #colorLiteral(red: 0.9882352941, green: 0.9882352941, blue: 0.9882352941, alpha: 1))
-        countLabel.textColor = colors.0
-        contentView.layer.borderColor = colors.1.cgColor
-        contentView.backgroundColor = colors.2
+        self.applyTheme()
     }
 
     override init(frame: CGRect) {
@@ -101,5 +102,25 @@ extension ReactionView {
         if sender.state == .began {
             longPressRecognized(sender)
         }
+    }
+}
+
+// MARK: Themeable
+
+extension ReactionView {
+    override func applyTheme() {
+        super.applyTheme()
+        guard let theme = theme else { return }
+
+        let colors: (UIColor, UIColor, UIColor) = {
+            switch theme {
+            case .light: return model.highlight ? (#colorLiteral(red: 0.1137254902, green: 0.4549019608, blue: 0.9607843137, alpha: 1), #colorLiteral(red: 0.1137254902, green: 0.4549019608, blue: 0.9607843137, alpha: 0.5), #colorLiteral(red: 0.9098039216, green: 0.9490196078, blue: 1, alpha: 1)) : (#colorLiteral(red: 0.1137254902, green: 0.4549019608, blue: 0.9607843137, alpha: 1), theme.borderColor, #colorLiteral(red: 1, green: 1, blue: 1, alpha: 1))
+            default: return model.highlight ? (#colorLiteral(red: 0, green: 0.56, blue: 0.9882352941, alpha: 0.69), #colorLiteral(red: 0, green: 0.5516742082, blue: 0.9960784314, alpha: 0.26), #colorLiteral(red: 0, green: 0.4999999989, blue: 1, alpha: 0.05)) : (#colorLiteral(red: 1, green: 1, blue: 1, alpha: 0.33), theme.borderColor, #colorLiteral(red: 1, green: 1, blue: 1, alpha: 0.01))
+            }
+        }()
+
+        countLabel.textColor = colors.0
+        contentView.layer.borderColor = colors.1.cgColor
+        contentView.backgroundColor = colors.2
     }
 }

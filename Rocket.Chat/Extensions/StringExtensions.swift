@@ -29,6 +29,26 @@ extension String {
         return nil
     }
 
+    func md5() -> String {
+        if let stringData = self.data(using: String.Encoding.utf8) {
+            return hexStringFromData(input: md5Digest(stringData: stringData) as NSData)
+        }
+
+        return ""
+    }
+
+    fileprivate func md5Digest(stringData: Data) -> Data {
+        var digestData = Data(count: Int(CC_MD5_DIGEST_LENGTH))
+
+        _ = digestData.withUnsafeMutableBytes { digestBytes in
+            stringData.withUnsafeBytes { stringBytes in
+                CC_MD5(stringBytes, CC_LONG(stringData.count), digestBytes)
+            }
+        }
+
+        return digestData
+    }
+
     func sha256() -> String {
         if let stringData = self.data(using: String.Encoding.utf8) {
             return hexStringFromData(input: digest(input: stringData as NSData))
@@ -77,6 +97,21 @@ extension String {
         return ranges
     }
 
+    /**
+     This method prevents the app from keeping the URL that may
+     come with (or without) a slash in the end. All the URLs
+     coming/mapped from the API should not have a slash in the end.
+
+     - returns: the same string, but without the last char if it exists.
+     */
+    func removingLastSlashIfNeeded() -> String {
+        if last == "/" {
+            return String(self.dropLast())
+        }
+
+        return self
+    }
+
     func removingWhitespaces() -> String {
         return components(separatedBy: .whitespacesAndNewlines).joined()
     }
@@ -89,6 +124,11 @@ extension String {
         return NSString(string: self).removingPercentEncoding
     }
 
+    func replacingFirstOccurrence(of string: String, with replacement: String) -> String {
+        guard let range = self.range(of: string) else { return self }
+        return replacingCharacters(in: range, with: replacement)
+    }
+
     func commandAndParams() -> (command: String, params: String)? {
         guard self.first == "/" && self.count > 1 else { return nil }
 
@@ -96,5 +136,17 @@ extension String {
         let command = String(components[0].dropFirst())
         let params = components.dropFirst().joined(separator: " ")
         return (command: command, params: params)
+    }
+
+    var boolValue: Bool {
+        return NSString(string: self).boolValue
+    }
+
+    func capitalizingFirstLetter() -> String {
+        return prefix(1).uppercased() + self.lowercased().dropFirst()
+    }
+
+    mutating func capitalizeFirstLetter() {
+        self = self.capitalizingFirstLetter()
     }
 }

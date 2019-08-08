@@ -10,13 +10,10 @@ import Foundation
 
 final class ChatTitleViewModel {
 
-    internal var user: User?
-    var subscription: Subscription? {
+    internal var user: UnmanagedUser?
+    var subscription: UnmanagedSubscription? {
         didSet {
-            guard
-                let subscription = subscription,
-                !subscription.isInvalidated
-            else {
+            guard let subscription = subscription else {
                 return
             }
 
@@ -24,8 +21,14 @@ final class ChatTitleViewModel {
         }
     }
 
+    var mainThreadMessage: UnmanagedMessage?
+
     var title: String {
-        return subscription?.displayName() ?? ""
+        if let mainThreadMessage = mainThreadMessage {
+            return mainThreadMessage.mainThreadTitle
+        }
+
+        return subscription?.displayName ?? ""
     }
 
     var iconColor: UIColor {
@@ -40,14 +43,22 @@ final class ChatTitleViewModel {
     }
 
     var imageName: String {
+        if mainThreadMessage != nil {
+            return "Threads"
+        }
+
         guard let subscription = subscription else {
-            return "Hashtag"
+            return "Channel Small"
+        }
+
+        if subscription.isDiscussion {
+            return "Discussions"
         }
 
         switch subscription.type {
-        case .channel: return "Hashtag"
-        case .directMessage: return "Mention"
-        case .group: return "Lock"
+        case .channel: return "Channel Small"
+        case .directMessage: return "DM Small"
+        case .group: return "Group Small"
         }
     }
 

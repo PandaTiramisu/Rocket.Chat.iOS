@@ -9,7 +9,7 @@
 import UIKit
 import MBProgressHUD
 
-class NewPasswordTableViewController: UITableViewController {
+final class NewPasswordTableViewController: BaseTableViewController {
 
     @IBOutlet weak var newPassword: UITextField! {
         didSet {
@@ -30,7 +30,7 @@ class NewPasswordTableViewController: UITableViewController {
     }
 
     lazy var activityIndicator: UIActivityIndicatorView = {
-        let activityIndicator = UIActivityIndicatorView(activityIndicatorStyle: .gray)
+        let activityIndicator = UIActivityIndicatorView(style: .gray)
         activityIndicator.startAnimating()
         return activityIndicator
     }()
@@ -87,12 +87,10 @@ class NewPasswordTableViewController: UITableViewController {
 
         alert.addTextField(configurationHandler: { textField in
             textField.placeholder = localized("myaccount.settings.profile.new_password.password_required.placeholder")
-            if #available(iOS 11.0, *) {
-                textField.textContentType = .password
-            }
+            textField.textContentType = .password
             textField.isSecureTextEntry = true
 
-            _ = NotificationCenter.default.addObserver(forName: .UITextFieldTextDidChange, object: textField, queue: OperationQueue.main) { _ in
+            _ = NotificationCenter.default.addObserver(forName: UITextField.textDidChangeNotification, object: textField, queue: OperationQueue.main) { _ in
                 updatePasswordAction.isEnabled = !(textField.text?.isEmpty ?? false)
             }
         })

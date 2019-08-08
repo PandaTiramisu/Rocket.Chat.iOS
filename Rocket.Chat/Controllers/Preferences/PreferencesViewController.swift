@@ -14,19 +14,39 @@ import SafariServices
 import FLEX
 #endif
 
-final class PreferencesViewController: UITableViewController {
+final class PreferencesViewController: BaseTableViewController {
 
     private let kSectionProfile = 0
     private let kSectionSettings = 1
-    private let kSectionInformation = 2
-    private let kSectionTracking = 3
-    private let kSectionFlex = 4
+    private let kSectionAdministration = 2
+    private let kSectionInformation = 3
+    private let kSectionTracking = 4
+    private let kSectionLogout = 5
+    private let kSectionFlex = 6
 
     private let viewModel = PreferencesViewModel()
 
-    @IBOutlet weak var labelProfile: UILabel! {
+    @IBOutlet weak var avatarViewContainer: UIView! {
         didSet {
-            labelProfile.text = viewModel.profile
+            avatarViewContainer.layer.cornerRadius = 4
+            avatarView.frame = avatarViewContainer.bounds
+            avatarViewContainer.addSubview(avatarView)
+        }
+    }
+
+    lazy var avatarView: AvatarView = {
+        let avatarView = AvatarView()
+        avatarView.layer.cornerRadius = 4
+        avatarView.layer.masksToBounds = true
+        return avatarView
+    }()
+
+    @IBOutlet weak var labelProfileName: UILabel!
+    @IBOutlet weak var labelProfileStatus: UILabel!
+
+    @IBOutlet weak var labelAdministration: UILabel! {
+        didSet {
+            labelAdministration.text = viewModel.administration
         }
     }
 
@@ -66,6 +86,18 @@ final class PreferencesViewController: UITableViewController {
         }
     }
 
+    @IBOutlet weak var labelReview: UILabel! {
+        didSet {
+            labelReview.text = viewModel.review
+        }
+    }
+
+    @IBOutlet weak var labelShare: UILabel! {
+        didSet {
+            labelShare.text = viewModel.share
+        }
+    }
+
     @IBOutlet weak var labelApp: UILabel! {
         didSet {
             labelApp.text = viewModel.appicon
@@ -78,9 +110,21 @@ final class PreferencesViewController: UITableViewController {
         }
     }
 
+    @IBOutlet weak var labelTheme: UILabel! {
+        didSet {
+            labelTheme.text = viewModel.theme
+        }
+    }
+
     @IBOutlet weak var labelDefaultWebBrowser: UILabel! {
         didSet {
             labelDefaultWebBrowser.text = WebBrowserManager.browser.name
+        }
+    }
+
+    @IBOutlet weak var labelLogout: UILabel! {
+        didSet {
+            labelLogout.text = viewModel.logout
         }
     }
 
@@ -100,15 +144,28 @@ final class PreferencesViewController: UITableViewController {
         return super.navigationController as? PreferencesNavigationController
     }
 
+    weak var shareAppCell: UITableViewCell?
+
     override func viewDidLoad() {
         super.viewDidLoad()
         title = viewModel.title
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        updateUserInformation()
     }
 
     @IBAction func buttonCloseDidPressed(_ sender: Any) {
         dismiss(animated: true) {
             UserReviewManager.shared.requestReview()
         }
+    }
+
+    private func updateUserInformation() {
+        avatarView.username = viewModel.user?.username
+        labelProfileName.text = viewModel.userName
+        labelProfileStatus.text = viewModel.userStatus.lowercased()
     }
 
     private func cellTermsOfServiceDidPressed() {
@@ -132,6 +189,43 @@ final class PreferencesViewController: UITableViewController {
         present(controller, animated: true, completion: nil)
     }
 
+    private func cellLogoutDidPressed() {
+        let title = localized("alert.logout.confirmation.title")
+        let message = String(format: localized("alert.logout.confirmation.message"), viewModel.serverName)
+
+        let actions = [
+            UIAlertAction(title: localized("alert.logout.confirmation.confirm"), style: .destructive, handler: { _ in
+                API.current()?.client(PushClient.self).deletePushToken()
+
+                AuthManager.logout {
+                    AuthManager.recoverAuthIfNeeded()
+                    AppManager.reloadApp()
+                }
+            }),
+            UIAlertAction(title: localized("global.cancel"), style: .cancel, handler: nil)
+        ]
+
+        alert(with: actions, title: title, message: message)
+    }
+
+    func openAdminPanel() {
+        guard
+            let auth = AuthManager.isAuthenticated(),
+            let baseURL = auth.settings?.siteURL,
+            let adminURL = URL(string: "\(baseURL)/admin/info?layout=embedded")
+        else {
+            return
+        }
+
+        AnalyticsManager.log(event: .openAdmin)
+
+        if let controller = WebViewControllerEmbedded.instantiateFromNib() {
+            controller.url = adminURL
+            controller.navigationBar.topItem?.title = viewModel.administration
+            present(controller, animated: true)
+        }
+    }
+
     // MARK: Navigation
 
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -142,29 +236,51 @@ final class PreferencesViewController: UITableViewController {
         }
     }
 
-    private func cellAppIconDidPressed() {
-        performSegue(withIdentifier: "AppIcon", sender: nil)
-    }
-
     private func cellLanguageDidPressed() {
         performSegue(withIdentifier: "Language", sender: nil)
+    }
+
+    private func cellReviewDidPressed() {
+        guard let url = viewModel.reviewURL else {
+            return
+        }
+
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+    }
+
+    private func cellShareDidPressed() {
+        guard let url = viewModel.shareURL else {
+            return
+        }
+
+        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+
+        if let cell = shareAppCell, UIDevice.current.userInterfaceIdiom == .pad {
+            controller.modalPresentationStyle = .popover
+            controller.popoverPresentationController?.sourceView = shareAppCell
+            controller.popoverPresentationController?.sourceRect = cell.bounds
+        }
+
+        present(controller, animated: true, completion: nil)
+    }
+
+    private func cellAppIconDidPressed() {
+        performSegue(withIdentifier: "AppIcon", sender: nil)
     }
 
     // MARK: UITableViewDelegate
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         if indexPath.section == kSectionSettings {
-            if indexPath.row == 0 {
-                cellContactDidPressed()
-            } else if indexPath.row == 1 {
-                cellLanguageDidPressed()
-            } else if indexPath.row == 2 {
-                cellAppIconDidPressed()
-            }
+            didSelectSettingsCell(indexPath)
         } else if indexPath.section == kSectionInformation {
             if indexPath.row == 0 {
                 cellTermsOfServiceDidPressed()
             }
+        } else if indexPath.section == kSectionAdministration {
+            openAdminPanel()
+        } else if indexPath.section == kSectionLogout {
+            cellLogoutDidPressed()
         } else if indexPath.section == kSectionFlex, indexPath.row == 0 {
             #if BETA || DEBUG
             FLEXManager.shared().showExplorer()
@@ -190,10 +306,44 @@ final class PreferencesViewController: UITableViewController {
         return nil
     }
 
+    override func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        if section == kSectionAdministration && !viewModel.canViewAdministrationPanel {
+            return .leastNormalMagnitude
+        }
+
+        return super.tableView(tableView, heightForHeaderInSection: section)
+    }
+
+    override func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
+        if section == kSectionAdministration && !viewModel.canViewAdministrationPanel {
+            return .leastNormalMagnitude
+        }
+
+        return super.tableView(tableView, heightForFooterInSection: section)
+    }
+
     // MARK: IBAction
 
+    fileprivate func didSelectSettingsCell(_ indexPath: IndexPath) {
+        switch indexPath.row {
+        case 0:
+            cellContactDidPressed()
+        case 1:
+            cellLanguageDidPressed()
+        case 4:
+            cellReviewDidPressed()
+        case 5:
+            shareAppCell = tableView.cellForRow(at: indexPath)
+            cellShareDidPressed()
+        case 6:
+            cellAppIconDidPressed()
+        default:
+            break
+        }
+    }
+
     @IBAction func crashReportSwitchDidChange(sender: Any) {
-        BugTrackingCoordinator.toggleCrashReporting(disabled: !switchTracking.isOn)
+        AnalyticsCoordinator.toggleCrashReporting(disabled: !switchTracking.isOn)
     }
 
 }

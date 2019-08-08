@@ -15,14 +15,20 @@ import SwiftyJSON
 // MARK: Test Instance
 
 extension User {
-    static func testInstance() -> User {
+    static func testInstance(_ name: String = "user") -> User {
         let user = User()
-        user.username = "user-username"
+        user.identifier = "\(name)-identifier"
+        user.username = "\(name)-username"
         return user
     }
 }
 
-class UserSpec: XCTestCase, RealmTestCase {
+class UserSpec: XCTestCase {
+
+    override func tearDown() {
+        super.tearDown()
+        Realm.clearDatabase()
+    }
 
     func testUserObject() {
         let object = User()
@@ -120,20 +126,26 @@ class UserSpec: XCTestCase, RealmTestCase {
 
     func testAvatarURLValid() {
         let auth = Auth.testInstance()
+        auth.token = "token123"
+        auth.userId = "userId123"
+
         let user = User.testInstance()
         let avatarURL = user.avatarURL(auth)
         XCTAssertNotNil(avatarURL, "url is valid")
-        XCTAssertEqual(avatarURL?.absoluteString, "https://open.rocket.chat/avatar/user-username", "avatar url is valid")
+        XCTAssertEqual(avatarURL?.absoluteString, "https://open.rocket.chat/avatar/user-username?format=jpeg&rc_uid=userId123&rc_token=token123", "avatar url is valid")
     }
 
     func testAvatarURLRandomUsername() {
         let auth = Auth.testInstance()
+        auth.token = "token123"
+        auth.userId = "userId123"
+
         let user = User.testInstance()
         user.username = String.random()
 
         let avatarURL = user.avatarURL(auth)
         XCTAssertNotNil(avatarURL, "url is valid")
-        XCTAssertEqual(avatarURL?.absoluteString, "https://open.rocket.chat/avatar/\(user.username ?? "")", "avatar url is valid")
+        XCTAssertEqual(avatarURL?.absoluteString, "https://open.rocket.chat/avatar/\(user.username ?? "")?format=jpeg&rc_uid=userId123&rc_token=token123", "avatar url is valid")
     }
 
     func testAvatarURLInvalid() {
@@ -156,6 +168,11 @@ class UserSpec: XCTestCase, RealmTestCase {
     }
 
     func testUserCanViewAdminPanelTrue() throws {
+        guard let realm = Realm.current else {
+            XCTFail("realm could not be instantiated")
+            return
+        }
+
         let user = User.testInstance()
         user.roles.removeAll()
         user.roles.append("admin")
@@ -166,11 +183,10 @@ class UserSpec: XCTestCase, RealmTestCase {
         permission.identifier = permissionType.rawValue
         permission.roles.append("admin")
 
-        let realm = testRealm()
-        try realm.write {
+        realm.execute({ realm in
             realm.add(user)
             realm.add(permission)
-        }
+        })
 
         XCTAssertTrue(user.canViewAdminPanel(realm: realm), "user cannot view admin panel by default")
     }

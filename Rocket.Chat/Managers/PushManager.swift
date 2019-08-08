@@ -149,12 +149,25 @@ extension PushManager {
         // side effect: needed for Subscription.notificationSubscription()
         AppManager.initialRoomId = notification.roomId
 
-        if index != DatabaseManager.selectedIndex {
-            AppManager.changeSelectedServer(index: index)
-        } else {
+        func openRoom() {
             if let auth = AuthManager.isAuthenticated() {
-                ChatViewController.shared?.subscription = .notificationSubscription(auth: auth)
+                let openSubscription = MainSplitViewController.chatViewController?.subscription
+                if let subscription = Subscription.notificationSubscription(auth: auth), subscription != openSubscription {
+                    AppManager.open(room: subscription, animated: false)
+                }
             }
+        }
+
+        if index != DatabaseManager.selectedIndex {
+            AppManager.changeSelectedServer(index: index) {
+                openRoom()
+            }
+        } else {
+            openRoom()
+        }
+
+        guard let realm = DatabaseManager.databaseInstace(index: index) else {
+            return false
         }
 
         if let reply = reply {
@@ -163,7 +176,7 @@ extension PushManager {
             let message = "\(reply)\(appendage)"
 
             let backgroundTask = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
-            API.current()?.fetch(PostMessageRequest(roomId: notification.roomId, text: message)) { response in
+            API.current(realm: realm)?.fetch(PostMessageRequest(roomId: notification.roomId, text: message)) { response in
                 switch response {
                 case .resource:
                     UIApplication.shared.endBackgroundTask(backgroundTask)
@@ -187,6 +200,8 @@ final class UserNotificationCenterDelegate: NSObject, UNUserNotificationCenterDe
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        AnalyticsManager.log(event: .replyNotification)
+
         PushManager.handleNotification(
             raw: response.notification.request.content.userInfo,
             reply: (response as? UNTextInputNotificationResponse)?.userText

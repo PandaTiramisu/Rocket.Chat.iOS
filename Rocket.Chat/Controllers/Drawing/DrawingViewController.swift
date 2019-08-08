@@ -8,7 +8,7 @@
 
 import UIKit
 
-final class DrawingViewController: UIViewController {
+final class DrawingViewController: BaseViewController {
     @IBOutlet weak var colorItem: UIBarButtonItem!
 
     weak var delegate: DrawingControllerDelegate?
@@ -98,7 +98,7 @@ final class DrawingViewController: UIViewController {
 
         UIGraphicsEndImageContext()
 
-        guard let imageData = UIImageJPEGRepresentation(image, 0.9) else {
+        guard let imageData = image.jpegData(compressionQuality: 0.9) else {
             dismiss(animated: true, completion: nil)
             return
         }

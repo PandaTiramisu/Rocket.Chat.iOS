@@ -20,24 +20,17 @@ In case you're interested in playing around with the code or giving something ba
 
 1. A macOS machine
 2. Xcode 9.3.x or higher (Swift 4.1)
-3. Install [CocoaPods](https://cocoapods.org/) (note that you will need to install at least Ruby 2.2.3 for this to work)
-```
-sudo gem install cocoapods
-```
-To update cocoapods (not that often needed) run
-```
-sudo gem update cocoapods
-```
-4. Clone this repo:
+
+### Installing dependencies
+
+_(NOTE: Steps 3 and 4 must be executed from project's directory)_
+
+1. Clone this repo:
 ```
 git clone https://github.com/RocketChat/Rocket.Chat.iOS
 ```
-5. Download library dependencies using the cocoapods dependency manager (and update the same way):
-```
-pod install
-```
-6. Do NOT open the Xcode project directly, instead use the Rocket.Chat.xcworkspace file to open the Xcode workspace.
-7. Build the project by ⌘ + R
+2. Use the Rocket.Chat.xcworkspace file to open the Xcode workspace.
+3. Build the project by ⌘ + R
 
 Also refer to [Guidelines](#project.pbxproj) for modifying files.
 

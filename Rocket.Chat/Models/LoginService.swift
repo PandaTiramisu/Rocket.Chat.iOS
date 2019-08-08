@@ -34,6 +34,18 @@ enum LoginServiceType {
         default: self = .invalid
         }
     }
+
+    var icon: UIImage? {
+        switch self {
+        case .google: return #imageLiteral(resourceName: "google")
+        case .facebook: return #imageLiteral(resourceName: "facebook")
+        case .github: return #imageLiteral(resourceName: "github")
+        case .gitlab: return #imageLiteral(resourceName: "gitlab")
+        case .linkedin: return #imageLiteral(resourceName: "linkedin")
+        case .wordpress: return #imageLiteral(resourceName: "wordpress")
+        default: return nil
+        }
+    }
 }
 
 class LoginService: BaseModel {
@@ -101,7 +113,7 @@ extension LoginService {
             return nil
         }
 
-        return "\(serverUrl)\(authorizePath)"
+        return authorizePath.contains("://") ? authorizePath : "\(serverUrl)\(authorizePath)"
     }
 
     var accessTokenUrl: String? {
@@ -119,64 +131,13 @@ extension LoginService {
 // MARK: Realm extensions
 
 extension LoginService {
-    static func find(service: String, realm: Realm) -> LoginService? {
+    static func find(service: String, realm: Realm? = Realm.current) -> LoginService? {
         var object: LoginService?
 
-        if let findObject = realm.objects(LoginService.self).filter("service == '\(service)'").first {
+        if let findObject = realm?.objects(LoginService.self).filter("service == '\(service)'").first {
             object = findObject
         }
 
         return object
-    }
-}
-
-// MARK: Standard Login Services extensions
-
-extension LoginService {
-    static var google: LoginService {
-        let service = LoginService()
-        service.mapGoogle()
-        return service
-    }
-
-    static var facebook: LoginService {
-        let service = LoginService()
-        service.mapFacebook()
-        return service
-    }
-
-    static var github: LoginService {
-        let service = LoginService()
-        service.mapGitHub()
-        return service
-    }
-
-    static func gitlab(url: String? = nil) -> LoginService {
-        let service = LoginService()
-        service.mapGitLab()
-
-        if let url = url {
-            service.serverUrl = url
-        }
-
-        return service
-    }
-
-    static var linkedin: LoginService {
-        let service = LoginService()
-        service.mapLinkedIn()
-        return service
-    }
-
-    static var wordpress: LoginService {
-        let service = LoginService()
-        service.mapWordPress()
-        return service
-    }
-
-    static var cas: LoginService {
-        let service = LoginService()
-        service.mapCAS()
-        return service
     }
 }

@@ -8,8 +8,8 @@
 
 import UIKit
 import AVFoundation
-import SDWebImage
 import FLAnimatedImage
+import Nuke
 
 class FileTableViewCell: UITableViewCell {
 
@@ -32,13 +32,11 @@ class FileTableViewCell: UITableViewCell {
         filePreview.layer.cornerRadius = 4
         filePreview.layer.borderWidth = 0.5
         filePreview.layer.borderColor = UIColor.lightGray.cgColor
-        filePreview.sd_setShowActivityIndicatorView(true)
-        filePreview.sd_setIndicatorStyle(.gray)
     }
 
     func updateFileData() {
         name.text = file.name
-        username.text = "@\(file.username)"
+        username.text = "\(file.username)"
         uploadedAt.text = file.uploadedAt?.formatted()
 
         guard let fileURL = file.fullFileURL() else {
@@ -69,13 +67,16 @@ class FileTableViewCell: UITableViewCell {
     }
 
     func updateImage(withURL url: URL) {
-        filePreview.sd_setImage(with: url) { (_, error, _, _) in
-            guard error == nil else {
-                self.filePreview.contentMode = .scaleAspectFit
-                self.filePreview.image = #imageLiteral(resourceName: "Resource Unavailable")
-                return
-            }
-        }
+        let options = ImageLoadingOptions(
+            failureImage: #imageLiteral(resourceName: "Resource Unavailable"),
+            contentModes: .init(
+                success: .scaleAspectFill,
+                failure: .scaleAspectFit,
+                placeholder: .scaleAspectFit
+            )
+        )
+
+        ImageManager.loadImage(with: url, options: options, into: filePreview)
     }
 
     func updateVideo(withURL url: URL) {
@@ -89,16 +90,16 @@ class FileTableViewCell: UITableViewCell {
             }
         }
 
-        DispatchQueue.global(qos: .userInitiated).async {
+        DispatchQueue.global(qos: .background).async {
             let asset = AVAsset(url: url)
             let imageGenerator = AVAssetImageGenerator(asset: asset)
             imageGenerator.appliesPreferredTrackTransform = true
-            let time = CMTimeMake(1, 1)
+            let time = CMTimeMake(value: 1, timescale: 1)
 
             do {
                 let imageRef = try imageGenerator.copyCGImage(at: time, actualTime: nil)
                 let thumbnail = UIImage(cgImage: imageRef)
-                try UIImagePNGRepresentation(thumbnail)?.write(to: thumbURL, options: .atomic)
+                try thumbnail.pngData()?.write(to: thumbURL, options: .atomic)
 
                 DispatchQueue.main.async {
                     self.filePreview.image = thumbnail
@@ -132,7 +133,16 @@ class FileTableViewCell: UITableViewCell {
         filePreview.contentMode = .scaleAspectFill
         filePreview.animatedImage = nil
         filePreview.image = nil
-        filePreview.sd_cancelCurrentImageLoad()
-        filePreview.sd_cancelCurrentAnimationImagesLoad()
+        Nuke.cancelRequest(for: filePreview)
+    }
+}
+
+// MARK: Themeable
+
+extension FileTableViewCell {
+    override func applyTheme() {
+        super.applyTheme()
+        guard let theme = theme else { return }
+        filePreview.tintColor = theme.titleText
     }
 }

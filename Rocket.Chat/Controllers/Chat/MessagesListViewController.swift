@@ -9,36 +9,49 @@
 import UIKit
 import RealmSwift
 
-extension SubscriptionMessagesResource {
+// swiftlint:disable file_length
+extension RoomMessagesResource {
     func fetchMessagesFromRealm() -> [Message]? {
-        let realm = Realm.current
-        return raw?["messages"].arrayValue.map { json in
-            let message = Message()
-            message.map(json, realm: realm)
-            return message
+        var messages = [Message]()
+        raw?["messages"].arrayValue.forEach { json in
+            Realm.executeOnMainThread({ realm in
+                let message = Message.getOrCreate(realm: realm, values: json, updates: nil)
+                message.map(json, realm: realm)
+                messages.append(message)
+            })
         }
+
+        return messages
     }
 }
 
-extension SubscriptionMentionsResource {
+extension RoomMentionsResource {
     func fetchMessagesFromRealm() -> [Message]? {
-        let realm = Realm.current
-        return raw?["mentions"].arrayValue.map { json in
-            let message = Message()
-            message.map(json, realm: realm)
-            return message
+        var messages = [Message]()
+        raw?["mentions"].arrayValue.forEach { json in
+            Realm.executeOnMainThread({ realm in
+                let message = Message.getOrCreate(realm: realm, values: json, updates: nil)
+                message.map(json, realm: realm)
+                messages.append(message)
+            })
         }
+
+        return messages
     }
 }
 
 extension SearchMessagesResource {
     func fetchMessagesFromRealm() -> [Message]? {
-        let realm = Realm.current
-        return raw?["messages"].arrayValue.map { json in
-            let message = Message()
-            message.map(json, realm: realm)
-            return message
+        var messages = [Message]()
+        raw?["messages"].arrayValue.forEach { json in
+            Realm.executeOnMainThread({ realm in
+                let message = Message.getOrCreate(realm: realm, values: json, updates: nil)
+                message.map(json, realm: realm)
+                messages.append(message)
+            })
         }
+
+        return messages
     }
 }
 
@@ -73,6 +86,7 @@ class MessagesListViewData {
 
     var query: String?
     private var isLoadingMoreMessages = false
+    private var hasMoreMessages = true
 
     func searchMessages(withText text: String, completion: (() -> Void)? = nil) {
         guard let subscription = subscription else {
@@ -96,7 +110,7 @@ class MessagesListViewData {
     }
 
     func loadMoreMessages(completion: (() -> Void)? = nil) {
-        guard !isLoadingMoreMessages else { return }
+        guard !isLoadingMoreMessages && hasMoreMessages else { return }
 
         if isListingMentions {
             loadMentions(completion: completion)
@@ -110,10 +124,11 @@ class MessagesListViewData {
 
         isLoadingMoreMessages = true
         let options: APIRequestOptionSet = [.paginated(count: pageSize, offset: currentPage*pageSize)]
-        let request = SubscriptionMessagesRequest(roomId: subscription.rid, type: subscription.type, query: query)
+        let request = RoomMessagesRequest(roomId: subscription.rid, type: subscription.type, query: query)
         API.current()?.fetch(request, options: options) { [weak self] response in
             switch response {
             case .resource(let resource):
+                self?.hasMoreMessages = resource.count ?? 0 > 0
                 self?.handleMessages(
                     fetchingWith: resource.fetchMessagesFromRealm,
                     showing: resource.count,
@@ -131,10 +146,11 @@ class MessagesListViewData {
 
         isLoadingMoreMessages = true
         let options: APIRequestOptionSet = [.paginated(count: pageSize, offset: currentPage*pageSize)]
-        let request = SubscriptionMentionsRequest(roomId: subscription.rid)
+        let request = RoomMentionsRequest(roomId: subscription.rid)
         API.current()?.fetch(request, options: options) { [weak self] response in
             switch response {
             case .resource(let resource):
+                self?.hasMoreMessages = resource.count ?? 0 > 0
                 self?.handleMessages(
                     fetchingWith: resource.fetchMessagesFromRealm,
                     showing: resource.count,
@@ -181,7 +197,6 @@ class MessagesListViewData {
             }
 
             if !self.isSearchingMessages { self.currentPage += 1 }
-
             self.isLoadingMoreMessages = false
             completion?()
         }
@@ -282,8 +297,8 @@ extension MessagesListViewController {
         }
 
         guard let refreshControl = collectionView.refreshControl, !data.isSearchingMessages else { return }
-        collectionView.refreshControl?.beginRefreshing()
         collectionView.contentOffset = CGPoint(x: 0, y: -refreshControl.frame.size.height)
+        collectionView.refreshControl?.beginRefreshing()
     }
 
     func registerCells() {
@@ -310,6 +325,7 @@ extension MessagesListViewController {
 
         navigationItem.rightBarButtonItem = cancelButton
         navigationItem.titleView = searchBar
+        searchBar.applyTheme()
     }
 
     @objc func close() {
@@ -346,7 +362,6 @@ extension MessagesListViewController: UICollectionViewDataSource {
 
         if let message = cellData.message,
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ChatMessageCell.identifier, for: indexPath) as? ChatMessageCell {
-            cell.delegate = ChatViewController.shared
             cell.message = message
             return cell
         }

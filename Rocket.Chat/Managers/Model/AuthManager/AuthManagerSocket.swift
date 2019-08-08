@@ -7,8 +7,31 @@
 //
 
 import RealmSwift
+import Starscream
 
 extension AuthManager {
+
+    /**
+     This method removes all private/system messages from database. These
+     messages are currently being feeded from a WebSocket stream and they
+     are not suppose to remain visible in between sessions.
+     */
+    static internal func removeAllPrivateMessages(realm: Realm? = Realm.current) {
+        realm?.execute({ (realm) in
+            let messages = realm.objects(Message.self).filter("privateMessage = YES")
+            realm.delete(messages)
+        })
+    }
+
+    /**
+     This method turns all user's status into offline/invisible.
+     */
+    static internal func turnAllUsersOffline(realm: Realm? = Realm.current) {
+        realm?.execute({ (realm) in
+            let users = realm.objects(User.self)
+            users.setValue("offline", forKey: "privateStatus")
+        })
+    }
 
     /**
      This method resumes a previous authentication with token
@@ -21,18 +44,29 @@ extension AuthManager {
     static func resume(_ auth: Auth, completion: @escaping MessageCompletion) {
         guard
             let url = URL(string: auth.serverURL),
-            let socketURL = url.socketURL()
+            let socketURL = url.socketURL(),
+            let servers = DatabaseManager.servers
         else {
             return
         }
 
-        // Turn all users offline
-        Realm.execute({ (realm) in
-            let users = realm.objects(User.self)
-            users.setValue("offline", forKey: "privateStatus")
-        })
+        turnAllUsersOffline()
+        removeAllPrivateMessages()
 
-        SocketManager.connect(socketURL) { (socket, _) in
+        let selectedIndex = DatabaseManager.selectedIndex
+        let server = servers[selectedIndex]
+
+        var sslClientCertificate: SSLClientCertificate?
+        if let path = server[ServerPersistKeys.sslClientCertificatePath] {
+            let fileURL = URL(fileURLWithPath: path)
+
+            sslClientCertificate = try? SSLClientCertificate(
+                pkcs12Url: fileURL,
+                password: server[ServerPersistKeys.sslClientCertificatePassword] ?? ""
+            )
+        }
+
+        SocketManager.connect(socketURL, sslCertificate: sslClientCertificate) { (socket, _) in
             guard SocketManager.isConnected() else {
                 guard let response = SocketResponse(
                     ["error": "Can't connect to the socket"],
@@ -46,7 +80,7 @@ extension AuthManager {
                 "msg": "method",
                 "method": "login",
                 "params": [[
-                    "resume": auth.token ?? ""
+                    "resume": auth.validated()?.token ?? ""
                 ]]
             ] as [String: Any]
 
@@ -195,7 +229,7 @@ extension AuthManager {
             "msg": "method",
             "method": "sendForgotPasswordEmail",
             "params": [email]
-            ] as [String: Any]
+        ] as [String: Any]
 
         SocketManager.send(object, completion: completion)
     }
@@ -222,26 +256,13 @@ extension AuthManager {
             "params": [username]
         ] as [String: Any]
 
-        let req = UpdateUserRequest(username: username)
-        API.current()?.fetch(req) { response in
-            switch response {
-            case .resource(let resource):
-                if let errorMessage = resource.errorMessage {
-                    return completion(false, errorMessage)
-                }
-                return completion(true, nil)
-            case .error(let error):
-                switch error {
-                case .version:
-                    SocketManager.send(object) { response in
-                        if let message = response.result["error"]["message"].string {
-                            completion(false, message)
-                        }
-                    }
-                default:
-                    completion(false, error.description)
-                }
+        SocketManager.send(object) { response in
+            if let message = response.result["error"]["message"].string {
+                completion(false, message)
+                return
             }
+
+            completion(true, nil)
         }
     }
 
@@ -251,8 +272,6 @@ extension AuthManager {
      */
     static func logout(completion: @escaping VoidCompletion) {
         SocketManager.disconnect { (_, _) in
-            BugTrackingCoordinator.anonymizeCrashReports()
-
             DraftMessageManager.clearServerDraftMessages()
 
             Realm.executeOnMainThread({ (realm) in

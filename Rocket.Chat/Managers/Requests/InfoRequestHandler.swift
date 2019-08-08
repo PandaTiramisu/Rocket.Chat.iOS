@@ -17,15 +17,22 @@ protocol InfoRequestHandlerDelegate: class {
     func serverChangedURL(_ newURL: String?)
 }
 
-class InfoRequestHandler: NSObject {
+final class InfoRequestHandler: NSObject {
 
     weak var delegate: InfoRequestHandlerDelegate?
     var url: URL?
     var version: Version?
     var validateServerVersion = true
 
-    func validate(with url: URL) {
-        API(host: url).fetch(InfoRequest()) { [weak self] response in
+    func validate(with url: URL, sslCertificatePath: URL?, sslCertificatePassword: String = "") {
+        let api = API(host: url)
+
+        if let sslCertificatePath = sslCertificatePath {
+            api.sslCertificatePath = sslCertificatePath
+            api.sslCertificatePassword = sslCertificatePassword
+        }
+
+        api.fetch(InfoRequest()) { [weak self] response in
             switch response {
             case .resource(let resource):
                 self?.validateServerResponse(result: resource)
@@ -39,6 +46,7 @@ class InfoRequestHandler: NSObject {
     func alert(for error: APIError) {
         switch error {
         case .notSecured: Alert(key: "alert.connection.not_secured").present()
+        case .error(let error): Alert(title: localized("global.error"), message: error.localizedDescription).present()
         default: alertInvalidURL()
         }
     }
@@ -49,6 +57,7 @@ class InfoRequestHandler: NSObject {
 
     internal func validateServerResponse(result: InfoResource?) {
         guard let version = result?.version else {
+            alertInvalidURL()
             delegate?.urlNotValid()
             return
         }

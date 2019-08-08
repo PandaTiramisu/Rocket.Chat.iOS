@@ -8,7 +8,7 @@
 
 import UIKit
 
-final class ChangeAppIconViewController: UIViewController {
+final class ChangeAppIconViewController: BaseViewController {
 
     private let viewModel = ChangeAppIconViewModel()
 
@@ -20,7 +20,7 @@ final class ChangeAppIconViewController: UIViewController {
 
         collectionView?.register(
             ReusableViewText.nib,
-            forSupplementaryViewOfKind: UICollectionElementKindSectionHeader,
+            forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
             withReuseIdentifier: ReusableViewText.identifier
         )
     }
@@ -28,16 +28,12 @@ final class ChangeAppIconViewController: UIViewController {
     private func changeIcon(name: String) {
         let iconName = name == "Default" ? nil : name
 
-        if #available(iOS 10.3, *) {
-            UIApplication.shared.setAlternateIconName(iconName) { error in
-                if let error = error {
-                    self.reportError(message: (error as NSError).localizedDescription)
-                }
-
-                self.collectionView.reloadData()
+        UIApplication.shared.setAlternateIconName(iconName) { error in
+            if let error = error {
+                self.reportError(message: (error as NSError).localizedDescription)
             }
-        } else {
-            reportError(message: viewModel.iosVersionMessage)
+
+            self.collectionView.reloadData()
         }
     }
 
@@ -68,12 +64,10 @@ extension ChangeAppIconViewController: UICollectionViewDataSource {
         let iconName = viewModel.availableIcons[indexPath.row]
 
         var isSelected = false
-        if #available(iOS 10.3, *) {
-            if let selectedIcon = UIApplication.shared.alternateIconName {
-                isSelected = iconName == selectedIcon
-            } else {
-                isSelected = indexPath.row == 0
-            }
+        if let selectedIcon = UIApplication.shared.alternateIconName {
+            isSelected = iconName == selectedIcon
+        } else {
+            isSelected = indexPath.row == 0
         }
 
         cell.setIcon(name: iconName, selected: isSelected)
@@ -81,7 +75,7 @@ extension ChangeAppIconViewController: UICollectionViewDataSource {
     }
 
     func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
-        if kind == UICollectionElementKindSectionHeader {
+        if kind == UICollectionView.elementKindSectionHeader {
             if let view = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: ReusableViewText.identifier, for: indexPath) as? ReusableViewText {
                 view.labelText.text = viewModel.header
                 return view
@@ -111,4 +105,15 @@ extension ChangeAppIconViewController: UICollectionViewDelegate {
         changeIcon(name: viewModel.availableIcons[indexPath.row])
     }
 
+}
+
+// MARK: Themeable
+
+extension ChangeAppIconViewController {
+    override func applyTheme() {
+        super.applyTheme()
+        guard let theme = view.theme else { return }
+
+        view.backgroundColor = theme.auxiliaryBackground
+    }
 }

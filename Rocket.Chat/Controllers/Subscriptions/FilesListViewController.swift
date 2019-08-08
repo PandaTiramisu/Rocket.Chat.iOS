@@ -7,11 +7,11 @@
 //
 
 import UIKit
-import SDWebImage
 import FLAnimatedImage
 import SimpleImageViewer
 import MBProgressHUD
 import MobilePlayer
+import Nuke
 
 class FilesListViewData {
     var subscription: Subscription?
@@ -43,7 +43,7 @@ class FilesListViewData {
             isLoadingMoreFiles = true
 
             let options: APIRequestOptionSet = [.paginated(count: pageSize, offset: currentPage*pageSize)]
-            let filesRequest = SubscriptionFilesRequest(roomId: subscription.rid, subscriptionType: subscription.type)
+            let filesRequest = RoomFilesRequest(roomId: subscription.rid, subscriptionType: subscription.type)
             API.current()?.fetch(filesRequest, options: options, completion: { [weak self] result in
                 switch result {
                 case .resource(let resource):
@@ -55,7 +55,7 @@ class FilesListViewData {
         }
     }
 
-    private func handle(result: SubscriptionFilesResource, completion: (() -> Void)? = nil) {
+    private func handle(result: RoomFilesResource, completion: (() -> Void)? = nil) {
         self.showing += result.count ?? 0
         self.total = result.total ?? 0
 
@@ -128,30 +128,30 @@ class FilesListViewController: BaseViewController {
     private func openRemoteImage(fromFile file: File, fromImageView imageView: FLAnimatedImageView?) {
         guard let fileURL = file.fullFileURL() else { return }
 
-        let open: ((Data?) -> Void) = { [weak self] data in
-            guard let strongSelf = self else { return }
+        let open: ((Image?) -> Void) = { [weak self] image in
+            guard let self = self else { return }
 
             let configuration = ImageViewerConfiguration { config in
-                if let data = data {
+                if let image = image {
                     if file.isGif {
-                        config.animatedImage = FLAnimatedImage(gifData: data)
+                        config.animatedImage = FLAnimatedImage(gifData: image.animatedImageData)
                     } else {
-                        config.image = UIImage(data: data)
+                        config.image = image
                     }
                 }
                 config.imageView = imageView
             }
 
             DispatchQueue.main.async {
-                MBProgressHUD.hide(for: strongSelf.view, animated: true)
-                strongSelf.present(ImageViewerController(configuration: configuration), animated: false)
+                MBProgressHUD.hide(for: self.view, animated: true)
+                self.present(ImageViewerController(configuration: configuration), animated: false)
             }
         }
 
         MBProgressHUD.showAdded(to: view, animated: true)
-        SDWebImageDownloader.shared().downloadImage(with: fileURL, options: [.useNSURLCache], progress: nil, completed: { _, data, _, _ in
-            open(data)
-        })
+        ImagePipeline.shared.loadImage(with: fileURL) { response, _ in
+            open(response?.image)
+        }
     }
 
     func openVideo(fromFile file: File) {
@@ -189,8 +189,8 @@ class FilesListViewController: BaseViewController {
             // Download file and cache it to be used later
             DownloadManager.download(url: fileURL, to: localFileURL) { [weak self] in
                 DispatchQueue.main.async {
-                    guard let strongSelf = self else { return }
-                    MBProgressHUD.hide(for: strongSelf.view, animated: true)
+                    guard let self = self else { return }
+                    MBProgressHUD.hide(for: self.view, animated: true)
                     open()
                 }
             }
@@ -208,7 +208,7 @@ extension FilesListViewController {
         refreshControl.addTarget(self, action: #selector(refreshControlDidPull), for: .valueChanged)
 
         tableView.refreshControl = refreshControl
-        tableView.rowHeight = UITableViewAutomaticDimension
+        tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 70
 
         let label = UILabel(frame: tableView.frame)
@@ -229,8 +229,8 @@ extension FilesListViewController {
             loadMoreFiles()
 
             guard let refreshControl = tableView.refreshControl else { return }
-            tableView.refreshControl?.beginRefreshing()
             tableView.contentOffset = CGPoint(x: 0, y: -refreshControl.frame.size.height)
+            tableView.refreshControl?.beginRefreshing()
         }
     }
 

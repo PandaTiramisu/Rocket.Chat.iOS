@@ -47,7 +47,6 @@ final class ReactorListView: UIView {
 
     @IBOutlet weak var reactorTableView: UITableView! {
         didSet {
-            reactorTableView.bounces = false
             reactorTableView.tableFooterView = UIView()
 
             reactorTableView.dataSource = self
@@ -80,6 +79,11 @@ final class ReactorListView: UIView {
     required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
         commonInit()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        applyTheme()
     }
 }
 
@@ -123,7 +127,6 @@ extension ReactorListView: UITableViewDataSource {
 extension ReactorListView: UITableViewDelegate {
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
         let view = UIView(frame: CGRect(x: 0, y: 0, width: tableView.frame.size.width, height: 40))
-        view.backgroundColor = UIColor(red: 247/255, green: 247/255, blue: 247/255, alpha: 1)
 
         let stackView = UIStackView(frame: CGRect(x: 16, y: 8, width: tableView.frame.size.width - 16, height: 24))
         stackView.spacing = 8
@@ -139,6 +142,9 @@ extension ReactorListView: UITableViewDelegate {
         stackView.addArrangedSubview(label)
 
         view.addSubview(stackView)
+
+        view.setThemeColor("backgroundColor: bannerBackground")
+        view.applyTheme()
 
         return view
     }

@@ -18,17 +18,34 @@ public typealias SocketCompletion = (WebSocket?, Bool) -> Void
 public typealias MessageCompletionObject <T: Object> = (T?) -> Void
 public typealias MessageCompletionObjectsList <T: Object> = ([T]) -> Void
 
-protocol SocketConnectionHandler {
-    func socketDidConnect(socket: SocketManager)
-    func socketDidDisconnect(socket: SocketManager)
-    func socketDidReturnError(socket: SocketManager, error: SocketError)
+enum SocketConnectionState {
+    case connected
+    case connecting
+    case disconnected
+    case waitingForNetwork
 }
 
-class SocketManager {
+protocol SocketConnectionHandler {
+    func socketDidChangeState(state: SocketConnectionState)
+}
+
+final class SocketManager {
 
     static let sharedInstance = SocketManager()
 
     var serverURL: URL?
+
+    var state: SocketConnectionState = .disconnected {
+        didSet {
+            if let enumerator = connectionHandlers.objectEnumerator() {
+                while let handler = enumerator.nextObject() {
+                    if let handler = handler as? SocketConnectionHandler {
+                        handler.socketDidChangeState(state: state)
+                    }
+                }
+            }
+        }
+    }
 
     var socket: WebSocket?
     var queue: [String: MessageCompletion] = [:]
@@ -38,22 +55,28 @@ class SocketManager {
 
     internal var internalConnectionHandler: SocketCompletion?
     internal var connectionHandlers = NSMapTable<NSString, AnyObject>(keyOptions: .strongMemory, valueOptions: .weakMemory)
+    internal var isPresentingInvalidSessionAlert = false
 
     // MARK: Connection
 
-    static func connect(_ url: URL, completion: @escaping SocketCompletion) {
+    static func connect(_ url: URL, sslCertificate: SSLClientCertificate? = nil, completion: @escaping SocketCompletion) {
         sharedInstance.serverURL = url
         sharedInstance.internalConnectionHandler = completion
 
-        sharedInstance.socket = WebSocket(url: url)
-        sharedInstance.socket?.delegate = sharedInstance
+        var request = URLRequest(url: url)
+        request.setValue(url.host ?? "", forHTTPHeaderField: "Host")
+
+        sharedInstance.socket = WebSocket(request: request)
+        sharedInstance.socket?.advancedDelegate = sharedInstance
         sharedInstance.socket?.pongDelegate = sharedInstance
-        sharedInstance.socket?.headers = [
-            "Host": url.host ?? "",
-            "User-Agent": API.userAgent
-        ]
+
+        if let certificate = sslCertificate {
+            sharedInstance.socket?.sslClientCertificate = certificate
+        }
 
         sharedInstance.socket?.connect()
+
+        sharedInstance.state = .connecting
     }
 
     static func disconnect(_ completion: @escaping SocketCompletion) {
@@ -138,31 +161,50 @@ extension SocketManager {
             return
         }
 
+        sharedInstance.state = .connecting
+
+        let currentRealm = Realm.current
         AuthManager.resume(auth, completion: { (response) in
             guard !response.isError() else {
                 return
             }
 
-            infoClient.fetchInfo()
+            infoClient.fetchInfo(realm: currentRealm, completion: {
+                SubscriptionManager.updateSubscriptions(auth, realm: currentRealm) {
+                    let validAuth = auth.validated() ?? AuthManager.isAuthenticated(realm: currentRealm)
+                    guard let auth = validAuth else {
+                        return
+                    }
 
-            SubscriptionManager.updateSubscriptions(auth) {
-                AuthSettingsManager.updatePublicSettings(auth)
+                    AuthSettingsManager.updatePublicSettings(auth)
 
-                UserManager.userDataChanges()
-                UserManager.changes()
-                SubscriptionManager.changes(auth)
-                SubscriptionManager.subscribeRoomChanges()
-                SubscriptionManager.subscribeInAppNotifications()
-                PermissionManager.changes()
-                infoClient.fetchPermissions()
-                CustomEmojiManager.sync()
+                    UserManager.userDataChanges()
+                    UserManager.changes()
+                    SubscriptionManager.changes(auth)
+                    SubscriptionManager.subscribeRoomChanges()
+                    SubscriptionManager.subscribeInAppNotifications()
+                    PermissionManager.changes()
+                    infoClient.fetchPermissions(realm: currentRealm)
+                    CustomEmojiManager.sync(realm: currentRealm)
+                    MessageManager.subscribeSystemMessages()
 
-                commandsClient.fetchCommands()
+                    commandsClient.fetchCommands(realm: currentRealm)
 
-                if let userIdentifier = auth.userId {
-                    PushManager.updateUser(userIdentifier)
+                    if let userIdentifier = auth.userId {
+                        PushManager.updateUser(userIdentifier)
+                    }
+
+                    if AuthManager.currentUser(realm: currentRealm)?.username == nil {
+                        WindowManager.open(
+                            .auth(
+                                serverUrl: "",
+                                credentials: nil
+                            ),
+                            viewControllerIdentifier: "RegisterUsernameNav"
+                        )
+                    }
                 }
-            }
+            })
         })
     }
 
@@ -188,7 +230,7 @@ extension SocketManager {
 
 // MARK: WebSocketDelegate
 
-extension SocketManager: WebSocketDelegate {
+extension SocketManager: WebSocketAdvancedDelegate {
 
     func websocketDidConnect(socket: WebSocket) {
         Log.debug("[WebSocket] \(socket.currentURL)\n -  did connect")
@@ -202,51 +244,50 @@ extension SocketManager: WebSocketDelegate {
         SocketManager.send(object)
     }
 
-    func websocketDidDisconnect(socket: WebSocket, error: NSError?) {
+    func websocketDidDisconnect(socket: WebSocket, error: Error?) {
         Log.debug("[WebSocket] \(socket.currentURL)\n - did disconnect with error (\(String(describing: error)))")
-
-        isUserAuthenticated = false
-        events = [:]
-        queue = [:]
 
         if let handler = internalConnectionHandler {
             internalConnectionHandler = nil
             handler(socket, socket.isConnected)
         }
 
-        if let enumerator = connectionHandlers.objectEnumerator() {
-            while let handler = enumerator.nextObject() {
-                if let handler = handler as? SocketConnectionHandler {
-                    handler.socketDidConnect(socket: self)
-                }
-            }
-        }
+        isUserAuthenticated = false
+        events = [:]
+        queue = [:]
+        state = .waitingForNetwork
     }
 
-    func websocketDidReceiveData(socket: WebSocket, data: Data) {
+    func websocketDidReceiveData(socket: WebSocket, data: Data, response: WebSocket.WSResponse) {
         Log.debug("[WebSocket] did receive data (\(data))")
     }
 
-    static let jsonParseQueue = DispatchQueue(label: "chat.rocket.json.parse", qos: .background)
+    static let messageHandlerQueue = DispatchQueue(label: "chat.rocket.websocket.handler", qos: .background)
 
-    func websocketDidReceiveMessage(socket: WebSocket, text: String) {
-        SocketManager.jsonParseQueue.async {
-            let json = JSON(parseJSON: text)
+    func websocketDidReceiveMessage(socket: WebSocket, text: String, response: WebSocket.WSResponse) {
+        let json = JSON(parseJSON: text)
 
-            // JSON is invalid
-            guard json.exists() else {
-                Log.debug("[WebSocket] \(socket.currentURL)\n - did receive invalid JSON object:\n\(text)")
-                return
-            }
-
-            if let raw = json.rawString() {
-                Log.debug("[WebSocket] \(socket.currentURL)\n - did receive JSON message:\n\(raw)")
-            }
-
-            DispatchQueue.main.async {
-                self.handleMessage(json, socket: socket)
-            }
+        // JSON is invalid
+        guard json.exists() else {
+            Log.debug("[WebSocket] \(socket.currentURL)\n - did receive invalid JSON object:\n\(text)")
+            return
         }
+
+        if let raw = json.rawString() {
+            Log.debug("[WebSocket] \(socket.currentURL)\n - did receive JSON message:\n\(raw)")
+        }
+
+        SocketManager.messageHandlerQueue.async {
+            self.handleMessage(json, socket: socket)
+        }
+    }
+
+    func websocketHttpUpgrade(socket: WebSocket, request: String) {
+        Log.debug("[WebSocket] http upgrade request (\(request))")
+    }
+
+    func websocketHttpUpgrade(socket: WebSocket, response: String) {
+        Log.debug("[WebSocket] http upgrade response (\(response))")
     }
 
 }
@@ -255,7 +296,7 @@ extension SocketManager: WebSocketDelegate {
 
 extension SocketManager: WebSocketPongDelegate {
 
-    func websocketDidReceivePong(socket: WebSocket, data: Data?) {
+    func websocketDidReceivePong(socket: WebSocketClient, data: Data?) {
         Log.debug("[WebSocket] did receive pong")
     }
 

@@ -9,8 +9,8 @@
 import Foundation
 
 extension UIFont {
-    func withTraits(_ traits: UIFontDescriptorSymbolicTraits...) -> UIFont? {
-        if let descriptor = self.fontDescriptor.withSymbolicTraits(UIFontDescriptorSymbolicTraits(traits)) {
+    func withTraits(_ traits: UIFontDescriptor.SymbolicTraits...) -> UIFont? {
+        if let descriptor = self.fontDescriptor.withSymbolicTraits(UIFontDescriptor.SymbolicTraits(traits)) {
             return UIFont(descriptor: descriptor, size: 0)
         }
         return nil
@@ -27,4 +27,9 @@ extension UIFont {
     func boldItalic() -> UIFont? {
         return withTraits(.traitBold, .traitItalic)
     }
+
+    func semibold() -> UIFont? {
+        return UIFont.systemFont(ofSize: self.pointSize, weight: .semibold)
+    }
+
 }

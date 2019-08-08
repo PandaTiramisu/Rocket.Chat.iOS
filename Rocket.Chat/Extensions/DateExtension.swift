@@ -10,13 +10,17 @@ import Foundation
 
 extension Date {
 
+    static var apiDateFormat: String = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+
     public static func dateFromInterval(_ interval: Double) -> Date? {
         return Date(timeIntervalSince1970: interval / 1000)
     }
 
     public static func dateFromString(_ string: String, format: String = "yyyy-MM-dd'T'HH:mm:ss.SSSZ") -> Date? {
         let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         dateFormatter.dateFormat = format
+
         return dateFormatter.date(from: string)
     }
 
@@ -44,9 +48,12 @@ extension Date {
         return self.formatted("YYYY")
     }
 
-    func formatted(_ format: String = "dd/MM/yyyy HH:mm:ss ZZZ") -> String {
+    func formatted(_ format: String = "dd/MM/yyyy HH:mm:ss ZZZ", timeZone: TimeZone? = .current) -> String {
         let dateFormatter = DateFormatter()
+        dateFormatter.timeZone = timeZone
         dateFormatter.dateFormat = format
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+
         return dateFormatter.string(from: self)
     }
 
@@ -57,9 +64,7 @@ extension Date {
     }
 
     func sameDayAs(_ otherDate: Date) -> Bool {
-        return day == otherDate.day &&
-            month == otherDate.month &&
-            year == otherDate.year
+        return Calendar.current.isDate(otherDate, inSameDayAs: self)
     }
 
 }

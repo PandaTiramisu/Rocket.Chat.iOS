@@ -7,7 +7,6 @@
 //
 
 import UIKit
-import SDWebImage
 
 private typealias EmojiCategory = (name: String, emojis: [Emoji])
 
@@ -167,7 +166,7 @@ final class EmojiPicker: UIView, RCEmojiKitLocalizable {
         emojisCollectionView.delegate = self
 
         emojisCollectionView.register(EmojiCollectionViewCell.self, forCellWithReuseIdentifier: "EmojiCollectionViewCell")
-        emojisCollectionView.register(EmojiPickerSectionHeaderView.self, forSupplementaryViewOfKind: UICollectionElementKindSectionHeader, withReuseIdentifier: "EmojiPickerSectionHeaderView")
+        emojisCollectionView.register(EmojiPickerSectionHeaderView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: "EmojiPickerSectionHeaderView")
 
         if let layout = emojisCollectionView.collectionViewLayout as? UICollectionViewFlowLayout {
             layout.sectionHeadersPinToVisibleBounds = true
@@ -195,6 +194,11 @@ final class EmojiPicker: UIView, RCEmojiKitLocalizable {
         super.didMoveToSuperview()
         setupCategoriesView()
         setupCollectionView()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        applyTheme()
     }
 }
 
@@ -339,5 +343,14 @@ private class EmojiPickerSectionHeaderView: UICollectionReusableView {
 
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+}
+
+// MARK: Themeable
+
+extension EmojiPicker {
+    override func applyTheme() {
+        super.applyTheme()
+        skinToneButton.backgroundColor = currentSkinTone.color
     }
 }

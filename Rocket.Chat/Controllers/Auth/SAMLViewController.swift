@@ -9,7 +9,7 @@
 import UIKit
 import WebKit
 
-class SAMLViewController: UIViewController {
+class SAMLViewController: BaseViewController {
     var serverUrl: URL!
     var provider: String = ""
 
@@ -39,7 +39,7 @@ class SAMLViewController: UIViewController {
     }()
 
     lazy var activityIndicator: UIActivityIndicatorView = {
-        let activityIndicator = UIActivityIndicatorView(activityIndicatorStyle: UIActivityIndicatorViewStyle.whiteLarge)
+        let activityIndicator = UIActivityIndicatorView(style: UIActivityIndicatorView.Style.whiteLarge)
         activityIndicator.frame = CGRect(x: 0, y: 0, width: 80, height: 80)
         activityIndicator.layer.cornerRadius = 10
         activityIndicator.backgroundColor = UIColor.black.withAlphaComponent(0.5)
@@ -101,4 +101,10 @@ extension SAMLViewController: WKNavigationDelegate, Closeable {
         activityIndicator.stopAnimating()
         activityIndicator.isHidden = true
     }
+}
+
+// MARK: Disable Theming
+
+extension SAMLViewController {
+    override func applyTheme() { }
 }
